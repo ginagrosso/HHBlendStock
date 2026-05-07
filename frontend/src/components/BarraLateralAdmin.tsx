@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/useAuthStore';
 import {
   BadgeDollarSign,
   Box,
@@ -32,6 +33,14 @@ const enlaces = [
 ];
 
 export function BarraLateralAdmin() {
+  const { cerrarSesion } = useAuthStore()
+  const navigate = useNavigate()
+
+  const handleCerrarSesion = async () => {
+    await cerrarSesion()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <nav className="hidden md:flex flex-col h-screen overflow-y-auto fixed left-0 top-0 w-64 border-r border-neutral-900 bg-black z-50">
       <div className="px-6 py-8 border-b border-neutral-900">
@@ -76,10 +85,11 @@ export function BarraLateralAdmin() {
         </NavLink>
         <button
           type="button"
-          className="flex items-center gap-3 px-6 py-4 text-sm text-neutral-500 hover:bg-neutral-900/30 hover:text-amber-200 transition-colors"
+          onClick={handleCerrarSesion}
+          className="flex items-center gap-3 px-6 py-4 text-sm text-neutral-500 hover:bg-neutral-900/30 hover:text-amber-200 transition-colors w-full text-left"
         >
           <LogOut className="h-5 w-5" />
-          <span>Cerrar Sesion</span>
+          <span>Cerrar sesión</span>
         </button>
       </div>
     </nav>
