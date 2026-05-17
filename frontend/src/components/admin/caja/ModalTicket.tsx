@@ -62,7 +62,7 @@ function generarHtmlTicket(ticket: Ticket): string {
   </style>
 </head>
 <body>
-  <div class="header"><h1>H&amp;H BLEND</h1><p>Alta Costura</p></div>
+  <div class="header"><h1>H&amp;H BLEND</h1></div>
   <div class="info">
     <p>Ticket N°: <strong>${ticket.numero}</strong></p>
     <p>Fecha: ${formatearFecha(ticket.fecha)}</p>
@@ -75,7 +75,7 @@ function generarHtmlTicket(ticket: Ticket): string {
   <div class="divider"></div>
   <div class="total-row"><span>TOTAL</span><span>${fmt(ticket.total)}</span></div>
   <div class="metodo">Pago: ${LABELS_METODO_PAGO[ticket.metodoPago]}</div>
-  <div class="footer"><p>¡Gracias por tu compra!</p><p>H&amp;H Blend — Alta Costura</p></div>
+  <div class="footer"><p>¡Gracias por tu compra!</p><p>H&amp;H Blend</p></div>
 </body>
 </html>`
 }
@@ -114,7 +114,6 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
   // Fuentes (system-ui es sans-serif nativa sin necesidad de cargar nada)
   const SANS = "system-ui, -apple-system, 'Segoe UI', sans-serif"
   const fBrand  = `bold 26px ${SANS}`
-  const fSub    = `400 13px ${SANS}`
   const fLabel  = `600 11px ${SANS}`
   const fBody   = `400 14px ${SANS}`
   const fBold   = `600 14px ${SANS}`
@@ -162,10 +161,6 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
   y += 32
   font(fBrand); fill(BLACK); align('center')
   text('H&H BLEND', W / 2, y)
-
-  y += 20
-  font(fSub); fill(GRAY)
-  text('Alta Costura', W / 2, y)
 
   y += 24; line(y); y += 20
 
@@ -246,7 +241,7 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
   text('¡Gracias por tu compra!', W / 2, y)
   y += 18
   font(fLabel); fill(LGRAY)
-  text('H&H BLEND  ·  Alta Costura', W / 2, y)
+  text('H&H BLEND', W / 2, y)
   y += 32
 
   // ── Barra dorada inferior (simetría) ─────────────────────────────────────
@@ -368,7 +363,6 @@ export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
           <h2 className="text-base font-bold text-neutral-100 tracking-widest uppercase">
             H&H BLEND
           </h2>
-          <p className="text-xs text-neutral-500 tracking-wider">Alta Costura</p>
           <div className="flex flex-col items-center gap-0.5 mt-1">
             <p className="text-xs text-neutral-400">
               Ticket N°{' '}
