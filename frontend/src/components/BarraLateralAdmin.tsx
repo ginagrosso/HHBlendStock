@@ -2,8 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
 import {
   BadgeDollarSign,
+  BarChart2,
   Box,
-  History,
   LogOut,
   Settings,
   Tag,
@@ -26,9 +26,9 @@ const enlaces = [
     Icono: Tag,
   },
   {
-    etiqueta: 'Historial',
-    ruta: '/admin/historial',
-    Icono: History,
+    etiqueta: 'Reportes',
+    ruta: '/admin/reportes',
+    Icono: BarChart2,
   },
 ];
 

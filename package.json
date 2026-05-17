@@ -16,7 +16,8 @@
     "lint": "npm -w functions run lint && npm -w frontend run lint",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:hosting": "firebase deploy --only hosting",
-    "deploy": "firebase deploy"
+    "deploy": "firebase deploy",
+    "crear-admin": "node scripts/crear-admin.js"
   },
   "dependencies": {
     "firebase": "^12.12.1"

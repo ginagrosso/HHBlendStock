@@ -2,6 +2,8 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { LayoutAdmin } from '../components/LayoutAdmin';
 import { PaginaInventarioAdmin } from '../pages/admin/PaginaInventarioAdmin';
+import { PaginaCajaAdmin } from '../pages/admin/PaginaCajaAdmin';
+import { PaginaReportesAdmin } from '../pages/admin/PaginaReportesAdmin';
 import { PaginaLogin } from '../pages/public/PaginaLogin';
 import { RutaPrivada } from '../components/RutaPrivada';
 
@@ -25,18 +27,26 @@ export const router = createBrowserRouter([
     ),
     children: [
       {
+        path: 'caja',
+        element: <PaginaCajaAdmin />,
+      },
+      {
         path: 'inventario',
         element: <PaginaInventarioAdmin />,
       },
       {
+        path: 'reportes',
+        element: <PaginaReportesAdmin />,
+      },
+      {
         index: true,
-        element: <PaginaInventarioAdmin />,
+        element: <Navigate to="/admin/caja" replace />,
       },
     ],
   },
   {
     path: '/',
-    element: <Navigate to="/admin/inventario" replace />,
+    element: <Navigate to="/admin/caja" replace />,
   },
   {
     path: '*',
