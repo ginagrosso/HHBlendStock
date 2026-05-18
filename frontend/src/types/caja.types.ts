@@ -30,6 +30,7 @@ export interface ItemCarrito {
   articulo: string
   talle: string
   cantidad: number
+  stockDisponible: number
   precioEfectivo: number
   precioTarjeta: number
 }

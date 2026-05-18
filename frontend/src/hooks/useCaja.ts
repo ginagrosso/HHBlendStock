@@ -95,6 +95,7 @@ export function useCaja(): UseCajaReturn {
         articulo: producto.articulo,
         talle: producto.talle,
         cantidad: 1,
+        stockDisponible: producto.stock,
         precioEfectivo: producto.precioEfectivo,
         precioTarjeta: producto.precioTarjeta,
       }
@@ -109,6 +110,7 @@ export function useCaja(): UseCajaReturn {
           if (i.productoId !== productoId || i.talle !== talle) return [i]
           const nuevaCantidad = i.cantidad + delta
           if (nuevaCantidad <= 0) return []
+          if (nuevaCantidad > i.stockDisponible) return [i]
           return [{ ...i, cantidad: nuevaCantidad }]
         }),
       )
@@ -165,8 +167,8 @@ export function useCaja(): UseCajaReturn {
         })
         setTicketActual(resultado.ticket)
         setEtapa('ticket')
-      } catch {
-        setErroPago('Error al procesar la venta. Intentá de nuevo.')
+      } catch (err) {
+        setErroPago(err instanceof Error ? err.message : 'Error al procesar la venta. Intentá de nuevo.')
       } finally {
         setProcesando(false)
       }

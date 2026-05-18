@@ -11,7 +11,7 @@ export function PaginaCajaAdmin() {
   return (
     <>
       {/* Layout principal */}
-      <section className="flex flex-col gap-6 h-[calc(100vh-8rem)]">
+      <section className="flex flex-col gap-6 h-[calc(100vh-3.5rem)]">
         {/* Encabezado */}
         <header className="flex flex-col gap-1 shrink-0">
           <div className="flex items-center gap-3">

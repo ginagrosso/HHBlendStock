@@ -1,40 +1,46 @@
-import type { ProductoCaja, DatosVenta, ResultadoVenta } from '../types/caja.types'
-import { PRODUCTOS_MOCK, generarTicketMock } from '../mocks/caja.mocks'
+import { apiFetch } from '../lib/api'
+import type {
+  ProductoCaja,
+  DatosVenta,
+  ResultadoVenta,
+  IBuscarProductosResponse,
+  IFinalizarVentaRequest,
+  IFinalizarVentaResponse,
+} from '../types/caja.types'
 
-// ─── Contrato del servicio ─────────────────────────────────────────────────────
-// Al implementar el backend, crear una clase `CajaServiceReal` que implemente
-// esta interfaz y exportarla como `cajaService` en lugar del mock.
 export interface ICajaService {
   buscarProductos(query: string): Promise<ProductoCaja[]>
   finalizarVenta(datos: DatosVenta): Promise<ResultadoVenta>
   // futuro: registrarEnArca(datos: DatosVenta): Promise<ArcaFactura>
 }
 
-// ─── Implementación mock ───────────────────────────────────────────────────────
-// Simula latencia de red para detectar problemas de UX antes de conectar el backend.
-const cajaServiceMock: ICajaService = {
+const cajaServiceReal: ICajaService = {
   async buscarProductos(query) {
-    await new Promise((r) => setTimeout(r, 180))
-
-    const q = query.trim().toLowerCase()
-    if (!q) return []
-
-    return PRODUCTOS_MOCK.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(q) ||
-        p.marca.toLowerCase().includes(q) ||
-        p.articulo.toLowerCase().includes(q) ||
-        p.categoria.toLowerCase().includes(q) ||
-        p.talle.toLowerCase() === q,
+    if (!query.trim()) return []
+    const data = await apiFetch<IBuscarProductosResponse>(
+      `/caja/productos?q=${encodeURIComponent(query)}`
     )
+    return data.productos
   },
 
   async finalizarVenta(datos) {
-    await new Promise((r) => setTimeout(r, 600))
-    // TODO: conectar a POST /caja/finalizar-venta + llamada a ARCA para facturación
-    const ticket = generarTicketMock(datos.items, datos.metodoPago, datos.cliente)
-    return { ticket }
+    const body: IFinalizarVentaRequest = {
+      items: datos.items.map((item) => ({
+        productoId: item.productoId,
+        articulo: item.articulo,
+        talle: item.talle,
+        cantidad: item.cantidad,
+        precioUnitario:
+          datos.metodoPago === 'tarjeta' ? item.precioTarjeta : item.precioEfectivo,
+      })),
+      metodoPago: datos.metodoPago,
+      cliente: datos.cliente,
+    }
+    return apiFetch<IFinalizarVentaResponse>('/caja/ventas', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
   },
 }
 
-export const cajaService: ICajaService = cajaServiceMock
+export const cajaService: ICajaService = cajaServiceReal

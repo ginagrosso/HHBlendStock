@@ -128,6 +128,8 @@ interface FilaCarritoProps {
 }
 
 function FilaCarrito({ item, onCambiarCantidad, onQuitar }: FilaCarritoProps) {
+  const enMaximo = item.cantidad >= item.stockDisponible
+
   return (
     <li className="flex flex-col gap-2 px-5 py-4">
       <div className="flex items-start justify-between gap-2">
@@ -150,24 +152,36 @@ function FilaCarrito({ item, onCambiarCantidad, onQuitar }: FilaCarritoProps) {
 
       <div className="flex items-center justify-between">
         {/* Control de cantidad */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onCambiarCantidad(item.productoId, item.talle, -1)}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <span className="text-sm font-semibold text-neutral-100 w-6 text-center">
-            {item.cantidad}
-          </span>
-          <button
-            type="button"
-            onClick={() => onCambiarCantidad(item.productoId, item.talle, 1)}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onCambiarCantidad(item.productoId, item.talle, -1)}
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <span className="text-sm font-semibold text-neutral-100 w-6 text-center">
+              {item.cantidad}
+            </span>
+            <button
+              type="button"
+              onClick={() => onCambiarCantidad(item.productoId, item.talle, 1)}
+              disabled={enMaximo}
+              className={`h-7 w-7 flex items-center justify-center rounded-lg transition-colors ${
+                enMaximo
+                  ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
+                  : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'
+              }`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {enMaximo && (
+            <span className="text-xs text-amber-600">
+              Máximo disponible ({item.stockDisponible})
+            </span>
+          )}
         </div>
 
         {/* Precios */}
