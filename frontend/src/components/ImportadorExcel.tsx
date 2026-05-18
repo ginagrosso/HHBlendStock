@@ -3,12 +3,13 @@ import { useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { useTiendaStore } from '../stores/useTiendaStore'
 import { inventarioService } from '../services/inventario.service'
-import { type CeldaExcel, procesarMultiplesSheets } from '../lib/utilsImportador'
+import { type CeldaExcel, type ProductoPlano, procesarMultiplesSheets } from '../lib/utilsImportador'
 
 interface Preview {
-  productos: { nombre: string; marca: string; articulo: string; categoria: string; talle: string; stock: number; precioEfectivo: number; precioTarjeta: number; imagenUrl: string | null }[]
+  productos: ProductoPlano[]
   reportePorCategoria: Map<string, { exitosos: number; errores: number; mensajes: string[] }>
-  totalProductos: number
+  totalFichas: number
+  totalVariantes: number
   totalErroresParseo: number
 }
 
@@ -67,10 +68,15 @@ export function ImportadorExcel() {
         })
       })
 
+      const totalFichas = new Set(
+        todosLosProductos.map((p) => `${p.marca.toLowerCase().trim()}|${p.articulo.toLowerCase().trim()}`)
+      ).size
+
       setPreview({
         productos: todosLosProductos,
         reportePorCategoria,
-        totalProductos: totalProductosCreados,
+        totalFichas,
+        totalVariantes: totalProductosCreados,
         totalErroresParseo: totalErrores,
       })
       setFase('preview')
@@ -223,8 +229,9 @@ export function ImportadorExcel() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-amber-500/10 border border-amber-500/20 rounded p-4">
-              <div className="text-xs text-neutral-400 mb-1">Productos a importar</div>
-              <div className="text-2xl font-bold text-amber-400">{preview.totalProductos}</div>
+              <div className="text-xs text-neutral-400 mb-1">Fichas a importar</div>
+              <div className="text-2xl font-bold text-amber-400">{preview.totalFichas}</div>
+              <div className="text-xs text-neutral-500 mt-1">{preview.totalVariantes} variantes (talles)</div>
             </div>
             <div className="bg-neutral-900 border border-neutral-800 rounded p-4">
               <div className="text-xs text-neutral-400 mb-1">Errores de parseo</div>
@@ -280,7 +287,7 @@ export function ImportadorExcel() {
         <div className="bg-neutral-950 border border-amber-500/20 rounded-lg p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-green-950/20 border border-green-600/30 rounded p-4">
-              <div className="text-sm text-neutral-400">Guardados en Firestore</div>
+              <div className="text-sm text-neutral-400">Fichas guardadas</div>
               <div className="text-2xl font-bold text-green-400">{resultado.upsertados}</div>
             </div>
             <div className="bg-red-950/20 border border-red-600/30 rounded p-4">

@@ -1,25 +1,28 @@
 import { apiFetch } from '../lib/api'
-import type { Producto } from '../stores/useTiendaStore'
+import type { Ficha, Variante } from '../stores/useTiendaStore'
+import type { ProductoPlano } from '../lib/utilsImportador'
 
-interface ProductoApi extends Omit<Producto, 'id'> {
+interface FichaApi {
   id: string
-  articuloId: string
+  nombre: string
+  marca: string
+  articulo: string
+  categoria: string
+  imagenUrl: string | null
+  variantes: Variante[]
   creadoEn: string
   actualizadoEn: string
 }
 
-function mapProducto(p: ProductoApi): Producto {
+function mapFicha(f: FichaApi): Ficha {
   return {
-    id: p.id,
-    nombre: p.nombre,
-    marca: p.marca,
-    articulo: p.articulo,
-    categoria: p.categoria,
-    talle: p.talle,
-    stock: p.stock,
-    precioEfectivo: p.precioEfectivo,
-    precioTarjeta: p.precioTarjeta,
-    imagenUrl: p.imagenUrl,
+    id: f.id,
+    nombre: f.nombre,
+    marca: f.marca,
+    articulo: f.articulo,
+    categoria: f.categoria,
+    imagenUrl: f.imagenUrl,
+    variantes: f.variantes,
   }
 }
 
@@ -29,25 +32,25 @@ export interface ResultadoImportacionApi {
 }
 
 export const inventarioService = {
-  async listar(): Promise<Producto[]> {
-    const data = await apiFetch<ProductoApi[]>('/inventario/productos')
-    return data.map(mapProducto)
+  async listar(): Promise<Ficha[]> {
+    const data = await apiFetch<FichaApi[]>('/inventario/productos')
+    return data.map(mapFicha)
   },
 
-  async crear(producto: Omit<Producto, 'id'>): Promise<Producto> {
-    const data = await apiFetch<ProductoApi>('/inventario/productos', {
+  async crear(datos: Omit<Ficha, 'id'>): Promise<Ficha> {
+    const data = await apiFetch<FichaApi>('/inventario/productos', {
       method: 'POST',
-      body: JSON.stringify(producto),
+      body: JSON.stringify(datos),
     })
-    return mapProducto(data)
+    return mapFicha(data)
   },
 
-  async actualizar(id: string, cambios: Partial<Omit<Producto, 'id'>>): Promise<Producto> {
-    const data = await apiFetch<ProductoApi>(`/inventario/productos/${id}`, {
+  async actualizar(id: string, cambios: Partial<Omit<Ficha, 'id'>>): Promise<Ficha> {
+    const data = await apiFetch<FichaApi>(`/inventario/productos/${id}`, {
       method: 'PUT',
       body: JSON.stringify(cambios),
     })
-    return mapProducto(data)
+    return mapFicha(data)
   },
 
   async eliminar(id: string): Promise<void> {
@@ -65,7 +68,7 @@ export const inventarioService = {
     })
   },
 
-  async importar(productos: Omit<Producto, 'id'>[]): Promise<ResultadoImportacionApi> {
+  async importar(productos: ProductoPlano[]): Promise<ResultadoImportacionApi> {
     return apiFetch('/inventario/importar', {
       method: 'POST',
       body: JSON.stringify({ productos }),

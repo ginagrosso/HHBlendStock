@@ -1,66 +1,49 @@
 import {Timestamp} from "firebase-admin/firestore";
-import {productoRepository} from "../repositories/producto.repository";
+import {productoRepository, crearFichaId} from "../repositories/producto.repository";
 import {AppError} from "../middleware/error.middleware";
-import {schemaCrearProducto} from "../schemas/producto.schema";
-import type {Producto, ProductoRespuesta} from "../models/producto.model";
+import {schemaProductoPlano} from "../schemas/producto.schema";
+import type {FichaRespuesta} from "../models/producto.model";
 import type {
-  CrearProductoDTO,
-  ActualizarProductoDTO,
+  CrearFichaDTO,
+  ActualizarFichaDTO,
   FiltrosProductoDTO,
   AjustePreciosDTO,
   ImportarDTO,
   ResultadoImportacion,
+  ProductoPlanoDTO,
 } from "../dtos/producto.dto";
 
-function normalizarTexto(texto: string): string {
-  return texto.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-}
-
-function crearArticuloId(marca: string, articulo: string): string {
-  return `${normalizarTexto(marca)}-${normalizarTexto(articulo)}`;
-}
-
-function crearProductoId(marca: string, articulo: string, talle: string): string {
-  return `${crearArticuloId(marca, articulo)}-${normalizarTexto(talle)}`;
-}
-
 export const inventarioService = {
-  async listar(filtros: FiltrosProductoDTO): Promise<ProductoRespuesta[]> {
+  async listar(filtros: FiltrosProductoDTO): Promise<FichaRespuesta[]> {
     return productoRepository.listar(filtros);
   },
 
-  async getById(id: string): Promise<ProductoRespuesta> {
-    const producto = await productoRepository.getById(id);
-    if (!producto) throw new AppError(404, "Producto no encontrado");
-    return producto;
+  async getById(id: string): Promise<FichaRespuesta> {
+    const ficha = await productoRepository.getById(id);
+    if (!ficha) throw new AppError(404, "Producto no encontrado");
+    return ficha;
   },
 
-  async crear(dto: CrearProductoDTO): Promise<ProductoRespuesta> {
-    const id = crearProductoId(dto.marca, dto.articulo, dto.talle);
-    const articuloId = crearArticuloId(dto.marca, dto.articulo);
+  async crear(dto: CrearFichaDTO): Promise<FichaRespuesta> {
+    const id = crearFichaId(dto.marca, dto.articulo);
     const ahora = Timestamp.now();
-
     return productoRepository.crear({
       id,
-      articuloId,
       nombre: dto.nombre,
       marca: dto.marca,
       articulo: dto.articulo,
       categoria: dto.categoria,
-      talle: dto.talle,
-      stock: dto.stock,
-      precioEfectivo: dto.precioEfectivo,
-      precioTarjeta: dto.precioTarjeta,
       imagenUrl: dto.imagenUrl ?? null,
+      variantes: dto.variantes,
       creadoEn: ahora,
       actualizadoEn: ahora,
     });
   },
 
-  async actualizar(id: string, dto: ActualizarProductoDTO): Promise<ProductoRespuesta> {
-    const producto = await productoRepository.actualizar(id, dto);
-    if (!producto) throw new AppError(404, "Producto no encontrado");
-    return producto;
+  async actualizar(id: string, dto: ActualizarFichaDTO): Promise<FichaRespuesta> {
+    const ficha = await productoRepository.actualizar(id, dto);
+    if (!ficha) throw new AppError(404, "Producto no encontrado");
+    return ficha;
   },
 
   async eliminar(id: string): Promise<void> {
@@ -77,29 +60,13 @@ export const inventarioService = {
   },
 
   async importar(dto: ImportarDTO): Promise<ResultadoImportacion> {
-    const ahora = Timestamp.now();
-    const validos: Producto[] = [];
+    const validos: ProductoPlanoDTO[] = [];
     const errores: {fila: number; error: string}[] = [];
 
     dto.productos.forEach((item, index) => {
-      const resultado = schemaCrearProducto.safeParse(item);
+      const resultado = schemaProductoPlano.safeParse(item);
       if (resultado.success) {
-        const d = resultado.data;
-        validos.push({
-          id: crearProductoId(d.marca, d.articulo, d.talle),
-          articuloId: crearArticuloId(d.marca, d.articulo),
-          nombre: d.nombre,
-          marca: d.marca,
-          articulo: d.articulo,
-          categoria: d.categoria,
-          talle: d.talle,
-          stock: d.stock,
-          precioEfectivo: d.precioEfectivo,
-          precioTarjeta: d.precioTarjeta,
-          imagenUrl: d.imagenUrl ?? null,
-          creadoEn: ahora,
-          actualizadoEn: ahora,
-        });
+        validos.push(resultado.data);
       } else {
         errores.push({
           fila: index + 1,

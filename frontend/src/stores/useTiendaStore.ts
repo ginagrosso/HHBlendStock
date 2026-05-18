@@ -1,17 +1,21 @@
 import { create } from 'zustand'
 import { inventarioService } from '../services/inventario.service'
 
-export interface Producto {
+export interface Variante {
+  talle: string
+  stock: number
+  precioEfectivo: number
+  precioTarjeta: number
+}
+
+export interface Ficha {
   id: string
   nombre: string
   marca: string
   articulo: string
   categoria: string
-  talle: string
-  stock: number
-  precioEfectivo: number
-  precioTarjeta: number
   imagenUrl: string | null
+  variantes: Variante[]
 }
 
 export interface NotificacionToast {
@@ -21,7 +25,7 @@ export interface NotificacionToast {
 }
 
 interface TiendaState {
-  productos: Producto[]
+  fichas: Ficha[]
   categorias: string[]
   busquedaQuery: string
   notificaciones: NotificacionToast[]
@@ -33,8 +37,8 @@ interface TiendaState {
   quitarNotificacion: (id: string) => void
 
   cargarProductos: () => Promise<void>
-  agregarProducto: (producto: Omit<Producto, 'id'>) => Promise<void>
-  editarProducto: (id: string, cambios: Partial<Omit<Producto, 'id'>>) => Promise<void>
+  agregarProducto: (datos: Omit<Ficha, 'id'>) => Promise<void>
+  editarProducto: (id: string, cambios: Partial<Omit<Ficha, 'id'>>) => Promise<void>
   eliminarProducto: (id: string) => Promise<void>
   ajustarPreciosMasivo: (categoria: string, porcentajeEfectivo: number, porcentajeTarjeta: number) => Promise<void>
 }
@@ -43,7 +47,7 @@ const crearIdNotificacion = () =>
   `toast_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 
 export const useTiendaStore = create<TiendaState>((set, get) => ({
-  productos: [],
+  fichas: [],
   categorias: [],
   busquedaQuery: '',
   notificaciones: [],
@@ -63,17 +67,17 @@ export const useTiendaStore = create<TiendaState>((set, get) => ({
   cargarProductos: async () => {
     set({ cargando: true, error: null })
     try {
-      const productos = await inventarioService.listar()
-      const categorias = [...new Set(productos.map((p) => p.categoria))].sort()
-      set({ productos, categorias, cargando: false })
+      const fichas = await inventarioService.listar()
+      const categorias = [...new Set(fichas.map((f) => f.categoria))].sort()
+      set({ fichas, categorias, cargando: false })
     } catch (err) {
       const mensaje = err instanceof Error ? err.message : 'Error al cargar productos'
       set({ error: mensaje, cargando: false })
     }
   },
 
-  agregarProducto: async (producto) => {
-    await inventarioService.crear(producto)
+  agregarProducto: async (datos) => {
+    await inventarioService.crear(datos)
     await get().cargarProductos()
   },
 

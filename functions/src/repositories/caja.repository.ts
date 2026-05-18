@@ -2,6 +2,7 @@ import {FieldValue, Timestamp} from "firebase-admin/firestore";
 import {db} from "../config/firebase";
 import {AppError} from "../middleware/error.middleware";
 import type {LineaVenta, MetodoPago, ClienteVenta, Venta, VentaRespuesta} from "../models/caja.model";
+import type {Ficha} from "../models/producto.model";
 import type {FinalizarVentaDTO} from "../dtos/caja.dto";
 
 export interface ProductoCajaData {
@@ -33,28 +34,36 @@ function serializarVenta(venta: Venta): VentaRespuesta {
 export const cajaRepository = {
   async buscarProductos(query: string): Promise<ProductoCajaData[]> {
     const terminos = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    const snapshot = await db.collection("productos").where("stock", ">", 0).get();
+    const snapshot = await db.collection("productos").get();
 
-    return snapshot.docs
-      .map((doc) => {
-        const d = doc.data();
-        return {
-          id: doc.id,
-          nombre: d.nombre as string,
-          marca: d.marca as string,
-          articulo: d.articulo as string,
-          categoria: d.categoria as string,
-          talle: d.talle as string,
-          stock: d.stock as number,
-          precioEfectivo: d.precioEfectivo as number,
-          precioTarjeta: d.precioTarjeta as number,
-          imagenUrl: (d.imagenUrl as string | null) ?? null,
-        };
-      })
-      .filter((p) => {
-        const campos = `${p.nombre} ${p.marca} ${p.articulo} ${p.categoria} ${p.talle}`.toLowerCase();
-        return terminos.every((t) => campos.includes(t));
-      });
+    const resultados: ProductoCajaData[] = [];
+
+    for (const doc of snapshot.docs) {
+      const ficha = doc.data() as Ficha;
+      const camposBase = `${ficha.nombre} ${ficha.marca} ${ficha.articulo} ${ficha.categoria}`.toLowerCase();
+
+      for (const variante of ficha.variantes) {
+        if (variante.stock <= 0) continue;
+
+        const camposCompletos = `${camposBase} ${variante.talle}`.toLowerCase();
+        if (terminos.every((t) => camposCompletos.includes(t))) {
+          resultados.push({
+            id: ficha.id,
+            nombre: ficha.nombre,
+            marca: ficha.marca,
+            articulo: ficha.articulo,
+            categoria: ficha.categoria,
+            talle: variante.talle,
+            stock: variante.stock,
+            precioEfectivo: variante.precioEfectivo,
+            precioTarjeta: variante.precioTarjeta,
+            imagenUrl: ficha.imagenUrl,
+          });
+        }
+      }
+    }
+
+    return resultados;
   },
 
   async crearVenta(
@@ -65,40 +74,56 @@ export const cajaRepository = {
   ): Promise<VentaRespuesta> {
     const contadorRef = db.collection("contadores").doc("ventas");
     const ventaRef = db.collection("ventas").doc();
-    const productoRefs = items.map((item) => db.collection("productos").doc(item.productoId));
+    // productoId en el carrito = fichaId
+    const fichaRefs = items.map((item) => db.collection("productos").doc(item.productoId));
 
     const resultado = await db.runTransaction(async (tx) => {
       // Fase 1: leer todos los documentos antes de cualquier escritura
-      const [contadorSnap, ...productoSnaps] = await Promise.all([
+      const [contadorSnap, ...fichaSnaps] = await Promise.all([
         tx.get(contadorRef),
-        ...productoRefs.map((ref) => tx.get(ref)),
+        ...fichaRefs.map((ref) => tx.get(ref)),
       ]);
 
       // Fase 2: validar stock y construir líneas de venta
       const lineas: LineaVenta[] = [];
+      const fichasActualizadas: {index: number; variantes: Ficha["variantes"]}[] = [];
+
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        const snap = productoSnaps[i];
+        const snap = fichaSnaps[i];
 
         if (!snap.exists) {
           throw new AppError(404, `Producto ${item.productoId} no encontrado`);
         }
 
-        const data = snap.data()!;
-        const stockActual = data.stock as number;
+        const ficha = snap.data()! as Ficha;
+        const varianteIndex = ficha.variantes.findIndex((v) => v.talle === item.talle);
 
-        if (stockActual < item.cantidad) {
-          throw new AppError(409, `Stock insuficiente para "${data.nombre as string}"`);
+        if (varianteIndex === -1) {
+          throw new AppError(404, `Talle "${item.talle}" no encontrado en ${ficha.nombre}`);
         }
 
+        const variante = ficha.variantes[varianteIndex];
+
+        if (variante.stock < item.cantidad) {
+          throw new AppError(409, `Stock insuficiente para "${ficha.nombre}" talle ${item.talle}`);
+        }
+
+        const variantesActualizadas = ficha.variantes.map((v, idx) =>
+          idx === varianteIndex ? {...v, stock: v.stock - item.cantidad} : v
+        );
+        fichasActualizadas.push({index: i, variantes: variantesActualizadas});
+
         lineas.push({
-          productoId: item.productoId,
-          descripcion: data.nombre as string,
+          productoId: ficha.id,
+          descripcion: ficha.nombre,
           articulo: item.articulo,
           talle: item.talle,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
           subtotal: item.precioUnitario * item.cantidad,
+          marca: ficha.marca,
+          categoria: ficha.categoria,
         });
       }
 
@@ -113,9 +138,9 @@ export const cajaRepository = {
       // Fase 5: escribir todo atómicamente
       tx.set(contadorRef, {ultimo: nuevo}, {merge: true});
 
-      for (let i = 0; i < items.length; i++) {
-        tx.update(productoRefs[i], {
-          stock: FieldValue.increment(-items[i].cantidad),
+      for (const {index, variantes} of fichasActualizadas) {
+        tx.update(fichaRefs[index], {
+          variantes,
           actualizadoEn: FieldValue.serverTimestamp(),
         });
       }

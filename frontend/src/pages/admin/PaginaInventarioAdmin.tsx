@@ -1,32 +1,30 @@
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Download, Plus } from 'lucide-react'
 
-import { ModalProducto, type DatosProducto } from '../../components/ModalProducto'
+import { ModalProducto, type DatosFicha } from '../../components/ModalProducto'
 import { ModalAjustePrecios } from '../../components/ModalAjustePrecios'
 import { ImportadorExcel } from '../../components/ImportadorExcel'
 import { TarjetasResumenInventario } from '../../components/admin/TarjetasResumenInventario'
 import { BarraFiltrosInventario } from '../../components/admin/BarraFiltrosInventario'
 import { TablaInventario } from '../../components/admin/TablaInventario'
-import { useTiendaStore } from '../../stores/useTiendaStore'
+import { useTiendaStore, type Variante } from '../../stores/useTiendaStore'
 import { useInventarioFiltros } from '../../hooks/useInventarioFiltros'
+import { exportarInventario } from '../../lib/utilsExportador'
 
 const formatearMoneda = (valor: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(valor)
 
-const VALORES_VACIOS: DatosProducto = {
+const VALORES_VACIOS: DatosFicha = {
   nombre: '',
   marca: '',
   articulo: '',
   categoria: '',
-  talle: '',
-  stock: 0,
-  precioEfectivo: 0,
-  precioTarjeta: 0,
   imagenUrl: null,
+  variantes: [],
 }
 
 export function PaginaInventarioAdmin() {
-  const productos = useTiendaStore((s) => s.productos)
+  const fichas = useTiendaStore((s) => s.fichas)
   const cargando = useTiendaStore((s) => s.cargando)
   const cargarProductos = useTiendaStore((s) => s.cargarProductos)
   const agregarProducto = useTiendaStore((s) => s.agregarProducto)
@@ -37,24 +35,24 @@ export function PaginaInventarioAdmin() {
   const [tabImportador, setTabImportador] = useState(false)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [modalAjusteAbierto, setModalAjusteAbierto] = useState(false)
-  const [productoActivo, setProductoActivo] = useState<{ id: string; datos: DatosProducto } | null>(null)
+  const [fichaActiva, setFichaActiva] = useState<{ id: string; datos: DatosFicha } | null>(null)
 
-  const filtros = useInventarioFiltros(productos)
+  const filtros = useInventarioFiltros(fichas)
 
   useEffect(() => {
     cargarProductos()
   }, [cargarProductos])
 
   const abrirModalNuevo = () => {
-    setProductoActivo(null)
+    setFichaActiva(null)
     setModalAbierto(true)
   }
 
   const abrirModalEditar = (id: string) => {
-    const producto = productos.find((p) => p.id === id)
-    if (!producto) return
-    const { id: _id, ...datos } = producto
-    setProductoActivo({ id, datos })
+    const ficha = fichas.find((f) => f.id === id)
+    if (!ficha) return
+    const { id: _id, ...datos } = ficha
+    setFichaActiva({ id, datos })
     setModalAbierto(true)
   }
 
@@ -68,24 +66,38 @@ export function PaginaInventarioAdmin() {
     }
   }
 
-  const manejarGuardar = async (datos: DatosProducto) => {
+  const manejarActualizarStock = async (id: string, variantes: Variante[]) => {
     try {
-      if (productoActivo) {
-        await editarProducto(productoActivo.id, datos)
+      await editarProducto(id, { variantes })
+      agregarNotificacion('Stock actualizado con éxito.', 'exito')
+    } catch (err) {
+      agregarNotificacion('Error al actualizar el stock.', 'error')
+      throw err
+    }
+  }
+
+  const manejarGuardar = async (datos: DatosFicha) => {
+    try {
+      if (fichaActiva) {
+        await editarProducto(fichaActiva.id, datos)
         agregarNotificacion('Producto actualizado con éxito.', 'exito')
       } else {
         await agregarProducto(datos)
         agregarNotificacion('Producto creado con éxito.', 'exito')
       }
       setModalAbierto(false)
-      setProductoActivo(null)
+      setFichaActiva(null)
     } catch {
       agregarNotificacion('Error al guardar el producto.', 'error')
     }
   }
 
-  const totalBajoStock = productos.filter((p) => p.stock === 0).length
-  const valorInventario = productos.reduce((acc, p) => acc + p.precioEfectivo * p.stock, 0)
+  // Una ficha "sin stock" es aquella que tiene al menos una variante agotada
+  const totalBajoStock = fichas.filter((f) => f.variantes.some((v) => v.stock === 0)).length
+  const valorInventario = fichas.reduce(
+    (acc, f) => acc + f.variantes.reduce((s, v) => s + v.precioEfectivo * v.stock, 0),
+    0
+  )
 
   return (
     <section className="flex flex-col gap-10">
@@ -127,6 +139,14 @@ export function PaginaInventarioAdmin() {
               </button>
               <button
                 type="button"
+                onClick={() => exportarInventario(fichas).catch(() => agregarNotificacion('Error al exportar el inventario.', 'error'))}
+                disabled={cargando || fichas.length === 0}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded border border-neutral-700 text-neutral-300 font-semibold hover:border-neutral-500 hover:text-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors uppercase text-sm tracking-wider"
+              >
+                <Download className="h-4 w-4" /> Exportar Excel
+              </button>
+              <button
+                type="button"
                 onClick={abrirModalNuevo}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded bg-amber-500 text-black font-semibold hover:bg-amber-400 transition-colors uppercase text-sm tracking-wider"
               >
@@ -137,7 +157,7 @@ export function PaginaInventarioAdmin() {
           </header>
 
           <TarjetasResumenInventario
-            totalProductos={productos.length}
+            totalProductos={fichas.length}
             totalBajoStock={totalBajoStock}
             valorInventario={formatearMoneda(valorInventario)}
           />
@@ -156,14 +176,15 @@ export function PaginaInventarioAdmin() {
           />
 
           <TablaInventario
-            productos={filtros.productosPaginados}
-            totalResultados={filtros.productosFiltrados.length}
+            fichas={filtros.fichasPaginadas}
+            totalResultados={filtros.fichasFiltradas.length}
             paginaActual={filtros.paginaActual}
             totalPaginas={filtros.totalPaginas}
             cargando={cargando}
             onEditar={abrirModalEditar}
             onEliminar={manejarEliminar}
             onCambiarPagina={filtros.setPaginaActual}
+            onActualizarStock={manejarActualizarStock}
           />
         </>
       ) : (
@@ -172,8 +193,8 @@ export function PaginaInventarioAdmin() {
 
       <ModalProducto
         abierto={modalAbierto}
-        titulo={productoActivo ? 'Editar Producto' : 'Nuevo Producto'}
-        valoresIniciales={productoActivo?.datos ?? VALORES_VACIOS}
+        titulo={fichaActiva ? 'Editar Producto' : 'Nuevo Producto'}
+        valoresIniciales={fichaActiva?.datos ?? VALORES_VACIOS}
         onCerrar={() => setModalAbierto(false)}
         onGuardar={manejarGuardar}
       />

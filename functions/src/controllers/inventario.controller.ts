@@ -1,8 +1,8 @@
 import type {Request, Response, NextFunction} from "express";
 import {inventarioService} from "../services/inventario.service";
 import {
-  schemaCrearProducto,
-  schemaActualizarProducto,
+  schemaCrearFicha,
+  schemaActualizarFicha,
   schemaFiltros,
   schemaAjustePrecios,
   schemaImportar,
@@ -11,8 +11,8 @@ import {
 export const listarProductos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const filtros = schemaFiltros.parse(req.query);
-    const productos = await inventarioService.listar(filtros);
-    res.json(productos);
+    const fichas = await inventarioService.listar(filtros);
+    res.json(fichas);
   } catch (err) {
     next(err);
   }
@@ -20,8 +20,8 @@ export const listarProductos = async (req: Request, res: Response, next: NextFun
 
 export const obtenerProducto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const producto = await inventarioService.getById(req.params.id);
-    res.json(producto);
+    const ficha = await inventarioService.getById(req.params.id);
+    res.json(ficha);
   } catch (err) {
     next(err);
   }
@@ -29,9 +29,9 @@ export const obtenerProducto = async (req: Request, res: Response, next: NextFun
 
 export const crearProducto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const dto = schemaCrearProducto.parse(req.body);
-    const producto = await inventarioService.crear(dto);
-    res.status(201).json(producto);
+    const dto = schemaCrearFicha.parse(req.body);
+    const ficha = await inventarioService.crear(dto);
+    res.status(201).json(ficha);
   } catch (err) {
     next(err);
   }
@@ -39,9 +39,9 @@ export const crearProducto = async (req: Request, res: Response, next: NextFunct
 
 export const actualizarProducto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const dto = schemaActualizarProducto.parse(req.body);
-    const producto = await inventarioService.actualizar(req.params.id, dto);
-    res.json(producto);
+    const dto = schemaActualizarFicha.parse(req.body);
+    const ficha = await inventarioService.actualizar(req.params.id, dto);
+    res.json(ficha);
   } catch (err) {
     next(err);
   }

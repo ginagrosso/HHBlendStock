@@ -1,6 +1,17 @@
-import type { Producto } from '../stores/useTiendaStore'
-
 export type CeldaExcel = string | number | boolean | null | undefined
+
+// Formato plano que produce el Excel: una fila = una variante (1 producto × 1 talle)
+export interface ProductoPlano {
+  nombre: string
+  marca: string
+  articulo: string
+  categoria: string
+  talle: string
+  stock: number
+  precioEfectivo: number
+  precioTarjeta: number
+  imagenUrl: string | null
+}
 
 interface FilaExcelCruda {
   articulo?: string
@@ -13,7 +24,7 @@ interface FilaExcelCruda {
 }
 
 interface ResultadoSheet {
-  exitosos: Producto[]
+  exitosos: ProductoPlano[]
   errores: Array<{ fila: number; mensaje: string }>
   estadisticas: { totalFilas: number; productosCreados: number; erroresEncontrados: number }
 }
@@ -106,17 +117,11 @@ function validarFila(fila: FilaExcelCruda, numeroFila: number): string[] {
   return errores
 }
 
-function generarIdProducto(marca: string, articulo: string, talle: string): string {
-  const sanitizar = (t: string) =>
-    t.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-  return `${sanitizar(marca)}-${sanitizar(articulo)}-${sanitizar(talle)}`
-}
-
 function aplanarFilaATalles(
   fila: FilaExcelCruda,
   categoria: string,
   numeroFila: number
-): { productos: Producto[]; errores: string[] } {
+): { productos: ProductoPlano[]; errores: string[] } {
   const errores = validarFila(fila, numeroFila)
   if (errores.length > 0) return { productos: [], errores }
 
@@ -142,8 +147,7 @@ function aplanarFilaATalles(
     return { productos: [], errores: [`Fila ${numeroFila}: No hay talles con stock`] }
   }
 
-  const productos = tallesDisponibles.map(({ talle, stock }) => ({
-    id: generarIdProducto(fila.marca || '', fila.articulo || '', talle),
+  const productos: ProductoPlano[] = tallesDisponibles.map(({ talle, stock }) => ({
     nombre: fila.descripcion || fila.articulo || 'Producto sin nombre',
     marca: fila.marca || 'Sin marca',
     articulo: fila.articulo || 'Sin artículo',
@@ -180,7 +184,7 @@ function procesarSheet(datos: CeldaExcel[][], categoria: string): ResultadoSheet
     }
   }
 
-  const exitosos: Producto[] = []
+  const exitosos: ProductoPlano[] = []
   const errores: Array<{ fila: number; mensaje: string }> = []
 
   for (let i = indiceEncabezado + 1; i < datos.length; i++) {
@@ -210,12 +214,12 @@ function procesarSheet(datos: CeldaExcel[][], categoria: string): ResultadoSheet
 }
 
 export function procesarMultiplesSheets(sheets: Map<string, CeldaExcel[][]>): {
-  todosLosProductos: Producto[]
+  todosLosProductos: ProductoPlano[]
   reporteDetalladoPorSheet: Map<string, { exitosos: number; errores: number; detalles: string[] }>
   totalProductosCreados: number
   totalErrores: number
 } {
-  const todosLosProductos: Producto[] = []
+  const todosLosProductos: ProductoPlano[] = []
   const reporteDetalladoPorSheet = new Map<
     string,
     { exitosos: number; errores: number; detalles: string[] }

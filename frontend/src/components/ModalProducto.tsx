@@ -1,264 +1,176 @@
-import { Trash2, Upload, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Plus, Trash2, Upload, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTiendaStore, type Ficha, type Variante } from '../stores/useTiendaStore'
 
-import { useTiendaStore, type Producto } from '../stores/useTiendaStore';
-
-export type DatosProducto = Omit<Producto, 'id'>;
+export type DatosFicha = Omit<Ficha, 'id'>
 
 interface ModalProductoProps {
-  abierto: boolean;
-  titulo: string;
-  valoresIniciales: DatosProducto;
-  onCerrar: () => void;
-  onGuardar: (datos: DatosProducto) => void;
+  abierto: boolean
+  titulo: string
+  valoresIniciales: DatosFicha
+  onCerrar: () => void
+  onGuardar: (datos: DatosFicha) => void
 }
 
-const valoresVacios: DatosProducto = {
-  nombre: '',
-  marca: '',
-  articulo: '',
-  categoria: '',
+const varianteVacia = (): Variante => ({
   talle: '',
   stock: 0,
   precioEfectivo: 0,
   precioTarjeta: 0,
+})
+
+const fichaVacia: DatosFicha = {
+  nombre: '',
+  marca: '',
+  articulo: '',
+  categoria: '',
   imagenUrl: null,
-};
+  variantes: [varianteVacia()],
+}
 
-export function ModalProducto({
-  abierto,
-  titulo,
-  valoresIniciales,
-  onCerrar,
-  onGuardar,
-}: ModalProductoProps) {
-  const categorias = useTiendaStore((state) => state.categorias);
+export function ModalProducto({ abierto, titulo, valoresIniciales, onCerrar, onGuardar }: ModalProductoProps) {
+  const categorias = useTiendaStore((state) => state.categorias)
 
-  const [datos, setDatos] = useState<DatosProducto>(valoresVacios);
-  const [errores, setErrores] = useState<{
-    nombre?: string;
-    marca?: string;
-    articulo?: string;
-    categoria?: string;
-    talle?: string;
-    stock?: string;
-    precioEfectivo?: string;
-    precioTarjeta?: string;
-    imagenUrl?: string;
-  }>({});
-
-  const [creandoCategoria, setCreandoCategoria] = useState(false);
-  const [nuevaCategoria, setNuevaCategoria] = useState('');
+  const [datos, setDatos] = useState<DatosFicha>(fichaVacia)
+  const [erroresCampos, setErroresCampos] = useState<Record<string, string>>({})
+  const [creandoCategoria, setCreandoCategoria] = useState(false)
+  const [nuevaCategoria, setNuevaCategoria] = useState('')
 
   useEffect(() => {
     if (abierto) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDatos({ ...valoresVacios, ...valoresIniciales });
-      setErrores({});
-      setCreandoCategoria(false);
-      setNuevaCategoria('');
+      setDatos({
+        ...fichaVacia,
+        ...valoresIniciales,
+        variantes: valoresIniciales.variantes?.length ? valoresIniciales.variantes : [varianteVacia()],
+      })
+      setErroresCampos({})
+      setCreandoCategoria(false)
+      setNuevaCategoria('')
     }
-  }, [abierto, valoresIniciales]);
+  }, [abierto, valoresIniciales])
 
-  if (!abierto) {
-    return null;
-  }
+  if (!abierto) return null
 
-  const actualizarCampo = <K extends keyof DatosProducto>(
-    campo: K,
-    valor: DatosProducto[K]
-  ) => {
-    setDatos((actual) => ({ ...actual, [campo]: valor }));
-  };
+  const actualizarCampo = <K extends keyof DatosFicha>(campo: K, valor: DatosFicha[K]) =>
+    setDatos((prev) => ({ ...prev, [campo]: valor }))
+
+  const actualizarVariante = (idx: number, campo: keyof Variante, valor: string | number) =>
+    setDatos((prev) => ({
+      ...prev,
+      variantes: prev.variantes.map((v, i) => (i === idx ? { ...v, [campo]: valor } : v)),
+    }))
+
+  const agregarVariante = () =>
+    setDatos((prev) => ({ ...prev, variantes: [...prev.variantes, varianteVacia()] }))
+
+  const eliminarVariante = (idx: number) =>
+    setDatos((prev) => ({ ...prev, variantes: prev.variantes.filter((_, i) => i !== idx) }))
 
   const manejarGuardarCategoria = () => {
-    const cat = nuevaCategoria.trim();
-    if (cat) {
-      actualizarCampo('categoria', cat);
-      setCreandoCategoria(false);
-      setNuevaCategoria('');
-    }
-  };
+    const cat = nuevaCategoria.trim()
+    if (!cat) return
+    const existente = categorias.find((c) => c.toLowerCase() === cat.toLowerCase())
+    actualizarCampo('categoria', existente ?? cat)
+    setCreandoCategoria(false)
+    setNuevaCategoria('')
+  }
 
   const procesarImagen = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0];
-    if (!archivo) return;
-
+    const archivo = e.target.files?.[0]
+    if (!archivo) return
     if (!archivo.type.startsWith('image/')) {
-      setErrores((prev) => ({ ...prev, imagenUrl: 'El archivo debe ser una imagen' }));
-      return;
+      setErroresCampos((prev) => ({ ...prev, imagenUrl: 'El archivo debe ser una imagen' }))
+      return
     }
-
-    const lector = new FileReader();
+    const lector = new FileReader()
     lector.onload = (evento) => {
-      const resultado = evento.target?.result;
+      const resultado = evento.target?.result
       if (typeof resultado === 'string') {
-        actualizarCampo('imagenUrl', resultado);
-        setErrores((prev) => {
-          const { imagenUrl: _imagenUrl, ...rest } = prev;
-          return rest;
-        });
+        actualizarCampo('imagenUrl', resultado)
+        setErroresCampos((prev) => { const { imagenUrl: _, ...rest } = prev; return rest })
       }
-    };
-    lector.readAsDataURL(archivo);
-  };
-
-  const eliminarImagen = () => {
-    actualizarCampo('imagenUrl', null);
-  };
-
-  const manejarGuardar = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nombreLimpio = datos.nombre.trim();
-    const marcaLimpia = datos.marca.trim();
-    const articuloLimpio = datos.articulo.trim();
-    const categoriaLimpia = datos.categoria.trim();
-    const talleLimpio = datos.talle.trim();
-    const nuevosErrores: typeof errores = {};
-
-    if (!nombreLimpio) {
-      nuevosErrores.nombre = 'El nombre es obligatorio.';
     }
+    lector.readAsDataURL(archivo)
+  }
 
-    if (!marcaLimpia) {
-      nuevosErrores.marca = 'La marca es obligatoria.';
-    }
+  const validar = (): boolean => {
+    const nuevosErrores: Record<string, string> = {}
 
-    if (!articuloLimpio) {
-      nuevosErrores.articulo = 'El artículo es obligatorio.';
-    }
+    if (!datos.nombre.trim()) nuevosErrores.nombre = 'El nombre es obligatorio.'
+    if (!datos.marca.trim()) nuevosErrores.marca = 'La marca es obligatoria.'
+    if (!datos.articulo.trim()) nuevosErrores.articulo = 'El artículo es obligatorio.'
+    if (!datos.categoria.trim()) nuevosErrores.categoria = 'La categoría es obligatoria.'
+    if (datos.variantes.length === 0) nuevosErrores.variantes = 'Se requiere al menos una variante.'
 
-    if (!categoriaLimpia) {
-      nuevosErrores.categoria = 'La categoría es obligatoria.';
-    }
+    datos.variantes.forEach((v, i) => {
+      if (!v.talle.trim()) nuevosErrores[`v_talle_${i}`] = 'Talle requerido.'
+      if (v.precioEfectivo <= 0) nuevosErrores[`v_ef_${i}`] = 'Precio efectivo debe ser mayor a 0.'
+      if (v.precioTarjeta <= 0) nuevosErrores[`v_tj_${i}`] = 'Precio tarjeta debe ser mayor a 0.'
+    })
 
-    if (!talleLimpio) {
-      nuevosErrores.talle = 'El talle es obligatorio.';
-    }
+    setErroresCampos(nuevosErrores)
+    return Object.keys(nuevosErrores).length === 0
+  }
 
-    if (!Number.isFinite(datos.stock) || datos.stock < 0) {
-      nuevosErrores.stock = 'El stock debe ser mayor o igual a cero.';
-    }
-
-    if (!Number.isFinite(datos.precioEfectivo) || datos.precioEfectivo <= 0) {
-      nuevosErrores.precioEfectivo = 'El precio efectivo debe ser mayor a cero.';
-    }
-
-    if (!Number.isFinite(datos.precioTarjeta) || datos.precioTarjeta <= 0) {
-      nuevosErrores.precioTarjeta = 'El precio tarjeta debe ser mayor a cero.';
-    }
-
-    setErrores(nuevosErrores);
-
-    if (Object.keys(nuevosErrores).length > 0) {
-      return;
-    }
-
+  const manejarGuardar = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validar()) return
     onGuardar({
       ...datos,
-      nombre: nombreLimpio,
-      marca: marcaLimpia,
-      articulo: articuloLimpio,
-      categoria: categoriaLimpia,
-      talle: talleLimpio,
-    });
-  };
+      nombre: datos.nombre.trim(),
+      marca: datos.marca.trim(),
+      articulo: datos.articulo.trim(),
+      categoria: datos.categoria.trim(),
+    })
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
-        onClick={onCerrar}
-      />
-      <div className="relative w-full max-w-2xl bg-neutral-950 border border-amber-500/20 rounded-lg p-6 shadow-xl transition-all m-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCerrar} />
+      <div className="relative w-full max-w-2xl bg-neutral-950 border border-amber-500/20 rounded-lg p-6 shadow-xl m-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-neutral-100">{titulo}</h3>
-          <button
-            type="button"
-            onClick={onCerrar}
-            className="text-neutral-500 hover:text-amber-500 transition-colors"
-            aria-label="Cerrar modal"
-          >
+          <button type="button" onClick={onCerrar} className="text-neutral-500 hover:text-amber-500 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form className="flex flex-col gap-6" onSubmit={manejarGuardar}>
-          {/* Fila 1: Nombre, Marca, Artículo */}
+          {/* Datos de la ficha */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                Nombre del Producto
-              </label>
+            <Campo label="Nombre del Producto" error={erroresCampos.nombre}>
               <input
-                className="bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
+                className={inputCls}
                 value={datos.nombre}
-                onChange={(event) => actualizarCampo('nombre', event.target.value)}
+                onChange={(e) => actualizarCampo('nombre', e.target.value)}
                 placeholder="Ej: Jean Clásico"
-                required
               />
-              {errores.nombre && (
-                <span className="text-xs text-red-400">{errores.nombre}</span>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                Marca
-              </label>
+            </Campo>
+            <Campo label="Marca" error={erroresCampos.marca}>
               <input
-                className="bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
+                className={inputCls}
                 value={datos.marca}
-                onChange={(event) => actualizarCampo('marca', event.target.value)}
+                onChange={(e) => actualizarCampo('marca', e.target.value)}
                 placeholder="Ej: Levis"
-                required
               />
-              {errores.marca && (
-                <span className="text-xs text-red-400">{errores.marca}</span>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                Artículo
-              </label>
+            </Campo>
+            <Campo label="Artículo" error={erroresCampos.articulo}>
               <input
-                className="bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
+                className={inputCls}
                 value={datos.articulo}
-                onChange={(event) => actualizarCampo('articulo', event.target.value)}
+                onChange={(e) => actualizarCampo('articulo', e.target.value)}
                 placeholder="Ej: 501"
-                required
               />
-              {errores.articulo && (
-                <span className="text-xs text-red-400">{errores.articulo}</span>
-              )}
-            </div>
+            </Campo>
           </div>
 
-          <div className="w-full h-px bg-neutral-800" />
-
-          {/* Fila 2: Categoría, Talle, Stock */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                  Categoría
-                </label>
-                {!creandoCategoria && (
-                  <button
-                    type="button"
-                    onClick={() => setCreandoCategoria(true)}
-                    className="text-xs text-amber-500 hover:text-amber-400 font-medium underline underline-offset-2"
-                  >
-                    + Nueva
-                  </button>
-                )}
-              </div>
-
+          {/* Categoría */}
+          <Campo label="Categoría" error={erroresCampos.categoria}>
+            <div className="flex items-center gap-2">
               {creandoCategoria ? (
-                <div className="flex gap-2">
+                <>
                   <input
-                    className="flex-1 bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
+                    className={`${inputCls} flex-1`}
                     value={nuevaCategoria}
                     onChange={(e) => setNuevaCategoria(e.target.value)}
                     placeholder="Ej: Pantalones"
@@ -267,146 +179,130 @@ export function ModalProducto({
                   <button
                     type="button"
                     onClick={manejarGuardarCategoria}
-                    className="bg-amber-500 text-black px-3 rounded text-sm font-semibold hover:bg-amber-400 transition-colors"
+                    className="bg-amber-500 text-black px-3 py-2 rounded text-sm font-semibold hover:bg-amber-400 transition-colors"
                   >
                     Crear
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setCreandoCategoria(false);
-                      setNuevaCategoria('');
-                    }}
+                    onClick={() => { setCreandoCategoria(false); setNuevaCategoria('') }}
                     className="text-neutral-500 hover:text-neutral-300 px-2"
                   >
                     <X className="h-4 w-4" />
                   </button>
-                </div>
+                </>
               ) : (
-                <select
-                  className="bg-neutral-950 border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none w-full"
-                  value={datos.categoria}
-                  onChange={(event) => actualizarCampo('categoria', event.target.value)}
-                  required
-                >
-                  <option value="" disabled>
-                    Seleccione una categoría...
-                  </option>
-                  {categorias.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {errores.categoria && (
-                <span className="text-xs text-red-400">{errores.categoria}</span>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                Talle
-              </label>
-              <input
-                className="bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
-                value={datos.talle}
-                onChange={(event) => actualizarCampo('talle', event.target.value)}
-                placeholder="Ej: 42 o M"
-                required
-              />
-              {errores.talle && (
-                <span className="text-xs text-red-400">{errores.talle}</span>
+                <>
+                  <select
+                    className="flex-1 bg-neutral-950 border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
+                    value={datos.categoria}
+                    onChange={(e) => actualizarCampo('categoria', e.target.value)}
+                  >
+                    <option value="" disabled>Seleccione una categoría...</option>
+                    {categorias.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setCreandoCategoria(true)}
+                    className="text-xs text-amber-500 hover:text-amber-400 font-medium whitespace-nowrap"
+                  >
+                    + Nueva
+                  </button>
+                </>
               )}
             </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                Stock
-              </label>
-              <input
-                className="bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
-                type="number"
-                min={0}
-                value={datos.stock === 0 ? '' : datos.stock}
-                onChange={(event) => actualizarCampo('stock', Number(event.target.value) || 0)}
-                placeholder="0"
-                required
-              />
-              {errores.stock && (
-                <span className="text-xs text-red-400">{errores.stock}</span>
-              )}
-            </div>
-          </div>
+          </Campo>
 
           <div className="w-full h-px bg-neutral-800" />
 
-          {/* Fila 3: Precios (Efectivo y Tarjeta) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                Precio Efectivo (ARS)
-              </label>
-              <input
-                className="bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
-                type="number"
-                min={0}
-                step={100}
-                value={datos.precioEfectivo === 0 ? '' : datos.precioEfectivo}
-                onChange={(event) => actualizarCampo('precioEfectivo', Number(event.target.value) || 0)}
-                placeholder="0.00"
-                required
-              />
-              {errores.precioEfectivo && (
-                <span className="text-xs text-red-400">{errores.precioEfectivo}</span>
-              )}
+          {/* Variantes */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-[0.2em] text-neutral-500">Variantes (Talles)</span>
+              <button
+                type="button"
+                onClick={agregarVariante}
+                className="inline-flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 font-medium transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" /> Agregar talle
+              </button>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                Precio Tarjeta (ARS)
-              </label>
-              <input
-                className="bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none"
-                type="number"
-                min={0}
-                step={100}
-                value={datos.precioTarjeta === 0 ? '' : datos.precioTarjeta}
-                onChange={(event) => actualizarCampo('precioTarjeta', Number(event.target.value) || 0)}
-                placeholder="0.00"
-                required
-              />
-              {errores.precioTarjeta && (
-                <span className="text-xs text-red-400">{errores.precioTarjeta}</span>
-              )}
-            </div>
-          </div>
+            {erroresCampos.variantes && (
+              <span className="text-xs text-red-400">{erroresCampos.variantes}</span>
+            )}
 
-          {/* Comparativa de precios */}
-          {datos.precioEfectivo > 0 && datos.precioTarjeta > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded p-3">
-              <div className="grid grid-cols-3 gap-4 text-sm">
+            {/* Encabezado de columnas */}
+            <div className="grid grid-cols-[1fr_80px_1fr_1fr_36px] gap-2 px-1">
+              {['Talle', 'Stock', 'P. Efectivo', 'P. Tarjeta', ''].map((h) => (
+                <span key={h} className="text-[10px] uppercase tracking-widest text-neutral-600">{h}</span>
+              ))}
+            </div>
+
+            {datos.variantes.map((v, i) => (
+              <div key={i} className="grid grid-cols-[1fr_80px_1fr_1fr_36px] gap-2 items-start">
                 <div>
-                  <span className="text-neutral-400">Efectivo:</span>
-                  <span className="ml-2 font-semibold text-green-400">
-                    ${datos.precioEfectivo.toLocaleString('es-AR')}
-                  </span>
+                  <input
+                    className={erroresCampos[`v_talle_${i}`] ? inputErrCls : inputCls}
+                    value={v.talle}
+                    onChange={(e) => actualizarVariante(i, 'talle', e.target.value.toUpperCase())}
+                    placeholder="42"
+                  />
+                  {erroresCampos[`v_talle_${i}`] && (
+                    <span className="text-[10px] text-red-400">{erroresCampos[`v_talle_${i}`]}</span>
+                  )}
                 </div>
                 <div>
-                  <span className="text-neutral-400">Tarjeta:</span>
-                  <span className="ml-2 font-semibold text-blue-400">
-                    ${datos.precioTarjeta.toLocaleString('es-AR')}
-                  </span>
+                  <input
+                    className={inputCls}
+                    type="number"
+                    min={0}
+                    value={v.stock === 0 ? '' : v.stock}
+                    onChange={(e) => actualizarVariante(i, 'stock', Number(e.target.value) || 0)}
+                    placeholder="0"
+                  />
                 </div>
                 <div>
-                  <span className="text-neutral-400">Diferencia:</span>
-                  <span className="ml-2 font-semibold text-amber-400">
-                    ${(datos.precioTarjeta - datos.precioEfectivo).toLocaleString('es-AR')}
-                  </span>
+                  <input
+                    className={erroresCampos[`v_ef_${i}`] ? inputErrCls : inputCls}
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={v.precioEfectivo === 0 ? '' : v.precioEfectivo}
+                    onChange={(e) => actualizarVariante(i, 'precioEfectivo', Number(e.target.value) || 0)}
+                    placeholder="0"
+                  />
+                  {erroresCampos[`v_ef_${i}`] && (
+                    <span className="text-[10px] text-red-400">{erroresCampos[`v_ef_${i}`]}</span>
+                  )}
                 </div>
+                <div>
+                  <input
+                    className={erroresCampos[`v_tj_${i}`] ? inputErrCls : inputCls}
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={v.precioTarjeta === 0 ? '' : v.precioTarjeta}
+                    onChange={(e) => actualizarVariante(i, 'precioTarjeta', Number(e.target.value) || 0)}
+                    placeholder="0"
+                  />
+                  {erroresCampos[`v_tj_${i}`] && (
+                    <span className="text-[10px] text-red-400">{erroresCampos[`v_tj_${i}`]}</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => eliminarVariante(i)}
+                  disabled={datos.variantes.length === 1}
+                  className="mt-1 text-neutral-600 hover:text-red-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
 
           <div className="w-full h-px bg-neutral-800" />
 
@@ -415,18 +311,13 @@ export function ModalProducto({
             <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">
               Imagen del Producto (Opcional)
             </label>
-
             {datos.imagenUrl ? (
-              <div className="relative w-full h-48 rounded border border-amber-500/20 overflow-hidden bg-neutral-900">
-                <img
-                  src={datos.imagenUrl}
-                  alt="Previsualización"
-                  className="w-full h-full object-cover"
-                />
+              <div className="relative w-full h-40 rounded border border-amber-500/20 overflow-hidden bg-neutral-900">
+                <img src={datos.imagenUrl} alt="Previsualización" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
                   <button
                     type="button"
-                    onClick={eliminarImagen}
+                    onClick={() => actualizarCampo('imagenUrl', null)}
                     className="bg-red-600 hover:bg-red-700 text-white p-2 rounded transition-colors"
                   >
                     <Trash2 className="h-5 w-5" />
@@ -434,23 +325,20 @@ export function ModalProducto({
                 </div>
               </div>
             ) : (
-              <label className="border-2 border-dashed border-neutral-700 hover:border-amber-500 rounded p-6 cursor-pointer text-center transition-colors">
-                <Upload className="h-8 w-8 text-neutral-500 mx-auto mb-2" />
+              <label className="border-2 border-dashed border-neutral-700 hover:border-amber-500 rounded p-5 cursor-pointer text-center transition-colors">
+                <Upload className="h-7 w-7 text-neutral-500 mx-auto mb-2" />
                 <p className="text-sm text-neutral-400">Haz clic o arrastra una imagen</p>
-                <p className="text-xs text-neutral-500">PNG, JPG, GIF hasta 5MB</p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={procesarImagen}
-                  className="hidden"
-                />
+                <p className="text-xs text-neutral-500">PNG, JPG hasta 5MB</p>
+                <input type="file" accept="image/*" onChange={procesarImagen} className="hidden" />
               </label>
+            )}
+            {erroresCampos.imagenUrl && (
+              <span className="text-xs text-red-400">{erroresCampos.imagenUrl}</span>
             )}
           </div>
 
           <div className="w-full h-px bg-neutral-800" />
 
-          {/* Botones de acción */}
           <div className="flex gap-3 justify-end">
             <button
               type="button"
@@ -469,5 +357,27 @@ export function ModalProducto({
         </form>
       </div>
     </div>
-  );
+  )
+}
+
+// ─── helpers de estilos ────────────────────────────────────────────────────────
+const inputCls =
+  'w-full bg-transparent border border-neutral-800 focus:border-amber-500 rounded px-3 py-2 text-sm text-neutral-100 outline-none'
+const inputErrCls =
+  'w-full bg-transparent border border-red-500/60 focus:border-red-400 rounded px-3 py-2 text-sm text-neutral-100 outline-none'
+
+interface CampoProps {
+  label: string
+  error?: string
+  children: React.ReactNode
+}
+
+function Campo({ label, error, children }: CampoProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-xs uppercase tracking-[0.2em] text-neutral-500">{label}</label>
+      {children}
+      {error && <span className="text-xs text-red-400">{error}</span>}
+    </div>
+  )
 }

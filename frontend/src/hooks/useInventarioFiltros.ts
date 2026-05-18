@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import type { Producto } from '../stores/useTiendaStore'
+import type { Ficha } from '../stores/useTiendaStore'
 import { useTiendaStore } from '../stores/useTiendaStore'
 
 const ITEMS_POR_PAGINA = 12
 
-export function useInventarioFiltros(productos: Producto[]) {
+export function useInventarioFiltros(fichas: Ficha[]) {
   const busquedaQuery = useTiendaStore((s) => s.busquedaQuery)
   const setBusquedaQuery = useTiendaStore((s) => s.setBusquedaQuery)
 
@@ -14,36 +14,53 @@ export function useInventarioFiltros(productos: Producto[]) {
   const [paginaActual, setPaginaActual] = useState(1)
 
   const categoriasDisponibles = useMemo(() => {
-    const cats = new Set(productos.map((p) => p.categoria))
-    return ['Todas', ...Array.from(cats)]
-  }, [productos])
+    const seen = new Set<string>()
+    const cats: string[] = []
+    fichas.forEach((f) => {
+      const key = f.categoria.toLowerCase()
+      if (!seen.has(key)) { seen.add(key); cats.push(f.categoria) }
+    })
+    return ['Todas', ...cats.sort()]
+  }, [fichas])
 
   const tallesDisponibles = useMemo(() => {
-    const talles = new Set(productos.map((p) => p.talle))
-    return ['Todos', ...Array.from(talles).sort()]
-  }, [productos])
+    const seen = new Set<string>()
+    const talles: string[] = []
+    fichas.flatMap((f) => f.variantes.map((v) => v.talle)).forEach((t) => {
+      const key = t.toUpperCase()
+      if (!seen.has(key)) { seen.add(key); talles.push(key) }
+    })
+    return ['Todos', ...talles.sort()]
+  }, [fichas])
 
-  const productosFiltrados = useMemo(() => {
+  const fichasFiltradas = useMemo(() => {
     const q = busquedaQuery.trim().toLowerCase()
-    return productos.filter((p) => {
-      const coincideBusqueda =
-        !q ||
-        p.nombre.toLowerCase().includes(q) ||
-        p.marca.toLowerCase().includes(q) ||
-        p.articulo.toLowerCase().includes(q)
-      const coincideCategoria = categoriaSeleccionada === 'Todas' || p.categoria === categoriaSeleccionada
-      const coincideTalle = talleSeleccionado === 'Todos' || p.talle === talleSeleccionado
-      const coincideStock = !soloBajoStock || p.stock === 0
+    const terminos = q ? q.split(/\s+/).filter(Boolean) : []
+    return fichas.filter((f) => {
+      const camposConcatenados = `${f.nombre} ${f.marca} ${f.articulo}`.toLowerCase()
+      const coincideBusqueda = terminos.length === 0 || terminos.every((t) => camposConcatenados.includes(t))
+
+      const coincideCategoria =
+        categoriaSeleccionada === 'Todas' ||
+        f.categoria.toLowerCase() === categoriaSeleccionada.toLowerCase()
+
+      const coincideTalle =
+        talleSeleccionado === 'Todos' ||
+        f.variantes.some((v) => v.talle.toUpperCase() === talleSeleccionado.toUpperCase())
+
+      // "Solo sin stock" muestra fichas donde AL MENOS UNA variante no tiene stock
+      const coincideStock = !soloBajoStock || f.variantes.some((v) => v.stock === 0)
+
       return coincideBusqueda && coincideCategoria && coincideTalle && coincideStock
     })
-  }, [productos, busquedaQuery, categoriaSeleccionada, talleSeleccionado, soloBajoStock])
+  }, [fichas, busquedaQuery, categoriaSeleccionada, talleSeleccionado, soloBajoStock])
 
-  const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / ITEMS_POR_PAGINA))
+  const totalPaginas = Math.max(1, Math.ceil(fichasFiltradas.length / ITEMS_POR_PAGINA))
 
-  const productosPaginados = useMemo(() => {
+  const fichasPaginadas = useMemo(() => {
     const inicio = (paginaActual - 1) * ITEMS_POR_PAGINA
-    return productosFiltrados.slice(inicio, inicio + ITEMS_POR_PAGINA)
-  }, [productosFiltrados, paginaActual])
+    return fichasFiltradas.slice(inicio, inicio + ITEMS_POR_PAGINA)
+  }, [fichasFiltradas, paginaActual])
 
   const cambiarBusqueda = (q: string) => { setBusquedaQuery(q); setPaginaActual(1) }
   const cambiarCategoria = (cat: string) => { setCategoriaSeleccionada(cat); setPaginaActual(1) }
@@ -59,8 +76,8 @@ export function useInventarioFiltros(productos: Producto[]) {
     setPaginaActual,
     categoriasDisponibles,
     tallesDisponibles,
-    productosFiltrados,
-    productosPaginados,
+    fichasFiltradas,
+    fichasPaginadas,
     totalPaginas,
     cambiarBusqueda,
     cambiarCategoria,

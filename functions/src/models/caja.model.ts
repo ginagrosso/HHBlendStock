@@ -10,6 +10,8 @@ export interface LineaVenta {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+  marca?: string;
+  categoria?: string;
 }
 
 export interface ClienteVenta {
