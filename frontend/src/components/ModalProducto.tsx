@@ -1,8 +1,7 @@
 import { Plus, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useTiendaStore, type Ficha, type Variante } from '../stores/useTiendaStore'
-
-export type DatosFicha = Omit<Ficha, 'id'>
+import { useTiendaStore } from '../stores/useTiendaStore'
+import type { Variante, DatosFicha } from '../types/inventario.types'
 
 interface ModalProductoProps {
   abierto: boolean

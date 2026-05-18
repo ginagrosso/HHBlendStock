@@ -1,4 +1,4 @@
-import type { Ficha, Variante } from '../stores/useTiendaStore'
+import type { Ficha, Variante } from '../types/inventario.types'
 
 // ARGB color tokens (prefijo FF = opacidad 100%)
 const C = {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { Ficha } from '../stores/useTiendaStore'
+import type { Ficha } from '../types/inventario.types'
 import { useTiendaStore } from '../stores/useTiendaStore'
 
 const ITEMS_POR_PAGINA = 12

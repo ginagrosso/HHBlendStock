@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Download, Plus } from 'lucide-react'
 
-import { ModalProducto, type DatosFicha } from '../../components/ModalProducto'
+import { ModalProducto } from '../../components/ModalProducto'
+import type { DatosFicha } from '../../types/inventario.types'
 import { ModalAjustePrecios } from '../../components/ModalAjustePrecios'
 import { ImportadorExcel } from '../../components/ImportadorExcel'
 import { TarjetasResumenInventario } from '../../components/admin/TarjetasResumenInventario'
 import { BarraFiltrosInventario } from '../../components/admin/BarraFiltrosInventario'
 import { TablaInventario } from '../../components/admin/TablaInventario'
-import { useTiendaStore, type Variante } from '../../stores/useTiendaStore'
+import { useTiendaStore } from '../../stores/useTiendaStore'
+import type { Variante } from '../../types/inventario.types'
 import { useInventarioFiltros } from '../../hooks/useInventarioFiltros'
 import { exportarInventario } from '../../lib/utilsExportador'
 

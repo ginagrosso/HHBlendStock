@@ -1,5 +1,5 @@
 import { apiFetch } from '../lib/api'
-import type { Ficha, Variante } from '../stores/useTiendaStore'
+import type { Ficha, Variante } from '../types/inventario.types'
 import type { ProductoPlano } from '../lib/utilsImportador'
 
 interface FichaApi {

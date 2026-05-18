@@ -1,22 +1,6 @@
 import { create } from 'zustand'
 import { inventarioService } from '../services/inventario.service'
-
-export interface Variante {
-  talle: string
-  stock: number
-  precioEfectivo: number
-  precioTarjeta: number
-}
-
-export interface Ficha {
-  id: string
-  nombre: string
-  marca: string
-  articulo: string
-  categoria: string
-  imagenUrl: string | null
-  variantes: Variante[]
-}
+import type { Ficha } from '../types/inventario.types'
 
 export interface NotificacionToast {
   id: string

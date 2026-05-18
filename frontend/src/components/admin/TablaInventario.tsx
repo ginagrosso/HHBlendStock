@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader } from 'lucide-react'
-import type { Ficha, Variante } from '../../stores/useTiendaStore'
+import type { Ficha, Variante } from '../../types/inventario.types'
 
 const formatearMoneda = (valor: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(valor)
