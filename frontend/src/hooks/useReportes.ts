@@ -27,7 +27,7 @@ export interface UseReportesReturn {
   resumen: ResumenReportes | null
   cargandoResumen: boolean
 
-  // Historial paginado
+  // Historial paginado (cliente)
   ventas: VentaHistorial[]
   cargandoHistorial: boolean
   pagina: number
@@ -55,80 +55,68 @@ export function useReportes(): UseReportesReturn {
   const [mes, setMes] = useState(hoy.getMonth() + 1)
   const [anio, setAnio] = useState(hoy.getFullYear())
 
+  // Datos del mes (1 query Firestore por cambio de mes/año)
+  const [cargandoMes, setCargandoMes] = useState(false)
   const [resumen, setResumen] = useState<ResumenReportes | null>(null)
-  const [cargandoResumen, setCargandoResumen] = useState(false)
+  const [todasLasVentas, setTodasLasVentas] = useState<VentaHistorial[]>([])
+  const [masVendidosMes, setMasVendidosMes] = useState<ProductoMasVendido[]>([])
+  const [resumenDiario, setResumenDiario] = useState<ResumenDiario[]>([])
 
-  const [ventas, setVentas] = useState<VentaHistorial[]>([])
-  const [cargandoHistorial, setCargandoHistorial] = useState(false)
+  // Paginación cliente
   const [pagina, setPagina] = useState(1)
-  const [totalPaginas, setTotalPaginas] = useState(1)
 
   const [ventaSeleccionada, setVentaSeleccionada] = useState<VentaHistorial | null>(null)
 
+  // Más vendidos
   const [masVendidos, setMasVendidos] = useState<ProductoMasVendido[]>([])
   const [periodoMasVendidos, setPeriodoMasVendidos] = useState<PeriodoMasVendidos>('historico')
   const [cargandoMasVendidos, setCargandoMasVendidos] = useState(false)
 
-  const [resumenDiario, setResumenDiario] = useState<ResumenDiario[]>([])
-  const [cargandoGrafico, setCargandoGrafico] = useState(false)
-
-  // KPIs + gráfico al cambiar mes/año
+  // Una sola llamada al backend por cambio de mes/año
   useEffect(() => {
     let cancelado = false
-    setCargandoResumen(true)
-    setCargandoGrafico(true)
+    setCargandoMes(true)
     setPagina(1)
 
-    Promise.all([
-      reportesService.obtenerResumen({ mes, anio }),
-      reportesService.obtenerResumenDiario({ mes, anio }),
-    ]).then(([resumenResp, diarioResp]) => {
+    reportesService.obtenerMes(mes, anio).then((resp) => {
       if (cancelado) return
-      setResumen(resumenResp.resumen)
-      setCargandoResumen(false)
-      setResumenDiario(diarioResp.dias)
-      setCargandoGrafico(false)
+      setResumen(resp.resumen)
+      setTodasLasVentas(resp.historial)
+      setMasVendidosMes(resp.masVendidosMes)
+      setResumenDiario(resp.resumenDiario)
+      setCargandoMes(false)
     })
 
     return () => { cancelado = true }
   }, [mes, anio])
 
-  // Historial al cambiar mes/año o página
+  // Cuando masVendidosMes se actualiza y el período activo es 'mes', sincronizar masVendidos
   useEffect(() => {
-    let cancelado = false
-    setCargandoHistorial(true)
+    if (periodoMasVendidos === 'mes') {
+      setMasVendidos(masVendidosMes)
+    }
+  }, [masVendidosMes, periodoMasVendidos])
 
-    reportesService
-      .obtenerHistorial({ mes, anio, pagina, porPagina: POR_PAGINA })
-      .then((resp) => {
-        if (cancelado) return
-        setVentas(resp.ventas)
-        setTotalPaginas(resp.totalPaginas)
-        setCargandoHistorial(false)
-      })
-
-    return () => { cancelado = true }
-  }, [mes, anio, pagina])
-
-  // Más vendidos al cambiar período o mes/año
+  // Cuando el período cambia a 'historico', leer el agregado (1 doc Firestore)
   useEffect(() => {
+    if (periodoMasVendidos !== 'historico') return
+
     let cancelado = false
     setCargandoMasVendidos(true)
 
-    reportesService
-      .obtenerMasVendidos({
-        periodo: periodoMasVendidos,
-        mes: periodoMasVendidos === 'mes' ? mes : undefined,
-        anio: periodoMasVendidos === 'mes' ? anio : undefined,
-      })
-      .then((resp) => {
-        if (cancelado) return
-        setMasVendidos(resp.productos)
-        setCargandoMasVendidos(false)
-      })
+    reportesService.obtenerHistorico(10).then((resp) => {
+      if (cancelado) return
+      setMasVendidos(resp.productos)
+      setCargandoMasVendidos(false)
+    })
 
     return () => { cancelado = true }
-  }, [periodoMasVendidos, mes, anio])
+  }, [periodoMasVendidos])
+
+  // Paginación cliente
+  const totalPaginas = Math.max(1, Math.ceil(todasLasVentas.length / POR_PAGINA))
+  const inicio = (pagina - 1) * POR_PAGINA
+  const ventas = todasLasVentas.slice(inicio, inicio + POR_PAGINA)
 
   const irMesAnterior = useCallback(() => {
     if (mes === 1) { setMes(12); setAnio((a) => a - 1) }
@@ -149,10 +137,10 @@ export function useReportes(): UseReportesReturn {
     mes, anio,
     nombreMesAnio: `${MESES[mes - 1]} de ${anio}`,
     irMesAnterior, irMesSiguiente,
-    resumen, cargandoResumen,
-    ventas, cargandoHistorial, pagina, totalPaginas, irPagina,
+    resumen, cargandoResumen: cargandoMes,
+    ventas, cargandoHistorial: cargandoMes, pagina, totalPaginas, irPagina,
     ventaSeleccionada, abrirDetalle, cerrarDetalle,
     masVendidos, periodoMasVendidos, cambiarPeriodoMasVendidos, cargandoMasVendidos,
-    resumenDiario, cargandoGrafico,
+    resumenDiario, cargandoGrafico: cargandoMes,
   }
 }

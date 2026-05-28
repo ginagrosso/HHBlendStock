@@ -4,6 +4,7 @@ import { LayoutAdmin } from '../components/LayoutAdmin';
 import { PaginaInventarioAdmin } from '../pages/admin/PaginaInventarioAdmin';
 import { PaginaCajaAdmin } from '../pages/admin/PaginaCajaAdmin';
 import { PaginaReportesAdmin } from '../pages/admin/PaginaReportesAdmin';
+import { PaginaFacturacionAdmin } from '../pages/admin/PaginaFacturacionAdmin';
 import { PaginaLogin } from '../pages/public/PaginaLogin';
 import { RutaPrivada } from '../components/RutaPrivada';
 
@@ -37,6 +38,10 @@ export const router = createBrowserRouter([
       {
         path: 'reportes',
         element: <PaginaReportesAdmin />,
+      },
+      {
+        path: 'facturacion',
+        element: <PaginaFacturacionAdmin />,
       },
       {
         index: true,

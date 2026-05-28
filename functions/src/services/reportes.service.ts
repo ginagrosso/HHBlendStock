@@ -6,7 +6,7 @@ import type {
   DesgloseMedioPago,
   ResumenReportes,
 } from "../models/reportes.model";
-import type {ResumenReportesDTO, HistorialVentasDTO, MasVendidosDTO, ResumenDiarioDTO} from "../dtos/reportes.dto";
+import type {MesDTO, HistoricoDTO} from "../dtos/reportes.dto";
 
 function fechaArgentina(isoUtc: string): string {
   const ms = new Date(isoUtc).getTime() - OFFSET_ARG_MS;
@@ -27,49 +27,33 @@ function hoyArgentina(): string {
 }
 
 export const reportesService = {
-  async obtenerResumen({mes, anio}: ResumenReportesDTO): Promise<{resumen: ResumenReportes}> {
-    const ventasMes = await reportesRepository.obtenerVentasPorMes(mes, anio);
-    const hoyStr = hoyArgentina();
-    const ventasHoy = ventasMes.filter((v) => fechaArgentina(v.fecha) === hoyStr);
-
-    const desglose: DesgloseMedioPago = {efectivo: 0, tarjeta: 0, transferencia: 0};
-    for (const v of ventasMes) desglose[v.metodoPago] += v.total;
-
-    return {
-      resumen: {
-        ventasHoy: ventasHoy.reduce((s, v) => s + v.total, 0),
-        cantidadVentasHoy: ventasHoy.length,
-        prendasHoy: ventasHoy.reduce((s, v) => s + v.items.reduce((si, i) => si + i.cantidad, 0), 0),
-        ventasMes: ventasMes.reduce((s, v) => s + v.total, 0),
-        cantidadVentasMes: ventasMes.length,
-        prendasMes: ventasMes.reduce((s, v) => s + v.items.reduce((si, i) => si + i.cantidad, 0), 0),
-        desgloseMes: desglose,
-      },
-    };
-  },
-
-  async obtenerHistorial({mes, anio, pagina, porPagina}: HistorialVentasDTO): Promise<{
-    ventas: VentaReportes[];
-    totalPaginas: number;
-    totalRegistros: number;
+  async obtenerMes({mes, anio}: MesDTO): Promise<{
+    resumen: ResumenReportes;
+    historial: VentaReportes[];
+    masVendidosMes: ProductoMasVendido[];
+    resumenDiario: ResumenDiario[];
   }> {
-    const ventasMes = await reportesRepository.obtenerVentasPorMes(mes, anio);
-    ventasMes.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-    const totalRegistros = ventasMes.length;
-    const totalPaginas = Math.max(1, Math.ceil(totalRegistros / porPagina));
-    const inicio = (pagina - 1) * porPagina;
-    return {
-      ventas: ventasMes.slice(inicio, inicio + porPagina),
-      totalPaginas,
-      totalRegistros,
+    const ventas = await reportesRepository.obtenerVentasPorMes(mes, anio);
+    const hoyStr = hoyArgentina();
+    const ventasHoy = ventas.filter((v) => fechaArgentina(v.fecha) === hoyStr);
+
+    // KPIs
+    const desglose: DesgloseMedioPago = {efectivo: 0, tarjeta: 0, transferencia: 0};
+    for (const v of ventas) desglose[v.metodoPago] += v.total;
+    const resumen: ResumenReportes = {
+      ventasHoy: ventasHoy.reduce((s, v) => s + v.total, 0),
+      cantidadVentasHoy: ventasHoy.length,
+      prendasHoy: ventasHoy.reduce((s, v) => s + v.items.reduce((si, i) => si + i.cantidad, 0), 0),
+      ventasMes: ventas.reduce((s, v) => s + v.total, 0),
+      cantidadVentasMes: ventas.length,
+      prendasMes: ventas.reduce((s, v) => s + v.items.reduce((si, i) => si + i.cantidad, 0), 0),
+      desgloseMes: desglose,
     };
-  },
 
-  async obtenerMasVendidos({periodo, mes, anio, limite}: MasVendidosDTO): Promise<{productos: ProductoMasVendido[]}> {
-    const ventas = periodo === "mes"
-      ? await reportesRepository.obtenerVentasPorMes(mes!, anio!)
-      : await reportesRepository.obtenerTodasLasVentas();
+    // Historial ordenado desc — frontend pagina en cliente
+    const historial = [...ventas].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
+    // Más vendidos del mes
     const mapa = new Map<string, ProductoMasVendido>();
     for (const venta of ventas) {
       for (const item of venta.items) {
@@ -92,22 +76,14 @@ export const reportesService = {
         }
       }
     }
+    const listaMes = Array.from(mapa.values()).sort((a, b) => b.totalUnidades - a.totalUnidades);
+    const maxMes = listaMes[0]?.totalUnidades ?? 1;
+    for (const p of listaMes) p.porcentaje = Math.round((p.totalUnidades / maxMes) * 100);
+    const masVendidosMes = listaMes.slice(0, 10);
 
-    const lista = Array.from(mapa.values())
-      .sort((a, b) => b.totalUnidades - a.totalUnidades)
-      .slice(0, limite);
-
-    const maxUnidades = lista[0]?.totalUnidades ?? 1;
-    for (const p of lista) p.porcentaje = Math.round((p.totalUnidades / maxUnidades) * 100);
-
-    return {productos: lista};
-  },
-
-  async obtenerResumenDiario({mes, anio}: ResumenDiarioDTO): Promise<{dias: ResumenDiario[]}> {
-    const ventasMes = await reportesRepository.obtenerVentasPorMes(mes, anio);
+    // Resumen diario
     const porDia = new Map<string, ResumenDiario>();
-
-    for (const v of ventasMes) {
+    for (const v of ventas) {
       const clave = fechaArgentina(v.fecha);
       const actual = porDia.get(clave);
       if (actual) {
@@ -117,7 +93,19 @@ export const reportesService = {
         porDia.set(clave, {fecha: clave, totalVentas: v.total, cantidadTransacciones: 1});
       }
     }
+    const resumenDiario = Array.from(porDia.values()).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-    return {dias: Array.from(porDia.values()).sort((a, b) => a.fecha.localeCompare(b.fecha))};
+    return {resumen, historial, masVendidosMes, resumenDiario};
+  },
+
+  async obtenerHistorico({limite}: HistoricoDTO): Promise<{productos: ProductoMasVendido[]}> {
+    const agregado = await reportesRepository.leerAgregado();
+    const lista = Object.values(agregado)
+      .sort((a, b) => b.totalUnidades - a.totalUnidades)
+      .slice(0, limite)
+      .map((e) => ({...e, porcentaje: 0}));
+    const max = lista[0]?.totalUnidades ?? 1;
+    for (const p of lista) p.porcentaje = Math.round((p.totalUnidades / max) * 100);
+    return {productos: lista};
   },
 };

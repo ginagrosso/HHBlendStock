@@ -41,11 +41,18 @@ export interface DatosCliente {
   telefono: string
 }
 
+// ─── Documento del receptor para ARCA (requerido cuando supera límite anónimo) ─
+export interface DocReceptor {
+  tipo: 96 | 80  // 96 = DNI, 80 = CUIT
+  nro: number
+}
+
 // ─── Datos de una venta a procesar ────────────────────────────────────────────
 export interface DatosVenta {
   items: ItemCarrito[]
   metodoPago: MetodoPago
   cliente?: DatosCliente
+  docReceptor?: DocReceptor
 }
 
 // ─── Ticket de venta ───────────────────────────────────────────────────────────
@@ -58,6 +65,15 @@ export interface LineaTicket {
   subtotal: number
 }
 
+export interface ArcaFacturaTicket {
+  cae: string
+  caeFchVto: string      // YYYYMMDD
+  nroComprobante: number
+  ptoVta: number
+  cbteTipo: number
+  qrUrl: string
+}
+
 export interface Ticket {
   numero: string
   fecha: string          // ISO 8601
@@ -65,17 +81,14 @@ export interface Ticket {
   lineas: LineaTicket[]
   total: number
   cliente?: DatosCliente
+  arcaFactura?: ArcaFacturaTicket  // presente si ARCA emitió el CAE
+  arcaError?: string               // presente si ARCA estaba habilitada pero falló
 }
 
 // ─── Contratos del API (request / response) ────────────────────────────────────
 // Documentan lo que el backend debe aceptar y retornar.
 // Al conectar el backend real, reemplazar la implementación mock en caja.service.ts
 // sin modificar estas interfaces.
-
-export interface IBuscarProductosRequest {
-  query: string
-  // futuro: soloConStock?: boolean; pagina?: number; limite?: number
-}
 
 export interface IBuscarProductosResponse {
   productos: ProductoCaja[]
@@ -91,15 +104,13 @@ export interface IFinalizarVentaRequest {
   }>
   metodoPago: MetodoPago
   cliente?: DatosCliente
-  // futuro: arcaHabilitada?: boolean
+  docReceptor?: DocReceptor
 }
 
 export interface IFinalizarVentaResponse {
   ticket: Ticket
-  // futuro: arcaFactura?: ArcaFactura
 }
 
 export interface ResultadoVenta {
   ticket: Ticket
-  // futuro: arcaFactura?: ArcaFactura
 }

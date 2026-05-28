@@ -11,7 +11,6 @@ import type {
 export interface ICajaService {
   buscarProductos(query: string): Promise<ProductoCaja[]>
   finalizarVenta(datos: DatosVenta): Promise<ResultadoVenta>
-  // futuro: registrarEnArca(datos: DatosVenta): Promise<ArcaFactura>
 }
 
 const cajaServiceReal: ICajaService = {
@@ -35,6 +34,7 @@ const cajaServiceReal: ICajaService = {
       })),
       metodoPago: datos.metodoPago,
       cliente: datos.cliente,
+      docReceptor: datos.docReceptor,
     }
     return apiFetch<IFinalizarVentaResponse>('/caja/ventas', {
       method: 'POST',

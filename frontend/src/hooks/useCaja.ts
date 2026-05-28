@@ -1,6 +1,8 @@
-import { useState, useCallback, useRef } from 'react'
-import type { ProductoCaja, ItemCarrito, MetodoPago, DatosCliente, Ticket } from '../types/caja.types'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import type { ProductoCaja, ItemCarrito, MetodoPago, DatosCliente, DocReceptor, Ticket } from '../types/caja.types'
+import type { ArcaConfig } from '../types/facturacion.types'
 import { cajaService } from '../services/caja.service'
+import { facturacionService } from '../services/facturacion.service'
 
 export type EtapaCaja = 'carrito' | 'pago' | 'ticket'
 
@@ -27,10 +29,11 @@ export interface UseCajaReturn {
   ticketActual: Ticket | null
   procesando: boolean
   erroPago: string | null
+  arcaConfig: ArcaConfig | null
   iniciarPago: () => void
   seleccionarMetodoPago: (metodo: MetodoPago) => void
   volverAlCarrito: () => void
-  confirmarVenta: (cliente?: DatosCliente) => Promise<void>
+  confirmarVenta: (cliente?: DatosCliente, docReceptor?: DocReceptor) => Promise<void>
   cerrarTicket: () => void
 }
 
@@ -46,6 +49,13 @@ export function useCaja(): UseCajaReturn {
   const [ticketActual, setTicketActual] = useState<Ticket | null>(null)
   const [procesando, setProcesando] = useState(false)
   const [erroPago, setErroPago] = useState<string | null>(null)
+  const [arcaConfig, setArcaConfig] = useState<ArcaConfig | null>(null)
+
+  useEffect(() => {
+    facturacionService.getConfig()
+      .then(setArcaConfig)
+      .catch(() => { /* falla silenciosa: el modal no bloqueará sin config */ })
+  }, [])
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -155,7 +165,7 @@ export function useCaja(): UseCajaReturn {
   }, [])
 
   const confirmarVenta = useCallback(
-    async (cliente?: DatosCliente) => {
+    async (cliente?: DatosCliente, docReceptor?: DocReceptor) => {
       if (!metodoPago) return
       setProcesando(true)
       setErroPago(null)
@@ -164,6 +174,7 @@ export function useCaja(): UseCajaReturn {
           items,
           metodoPago,
           cliente,
+          docReceptor,
         })
         setTicketActual(resultado.ticket)
         setEtapa('ticket')
@@ -202,6 +213,7 @@ export function useCaja(): UseCajaReturn {
     ticketActual,
     procesando,
     erroPago,
+    arcaConfig,
     iniciarPago,
     seleccionarMetodoPago,
     volverAlCarrito,

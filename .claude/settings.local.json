@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc *)",
-      "Bash(dir \"c:\\\\Users\\\\gross\\\\Desktop\\\\ProyectosET\\\\HHBlendStock\\\\frontend\\\\src\\\\mocks\")"
+      "Bash(dir \"c:\\\\Users\\\\gross\\\\Desktop\\\\ProyectosET\\\\HHBlendStock\\\\frontend\\\\src\\\\mocks\")",
+      "Bash(npm install *)"
     ]
   }
 }

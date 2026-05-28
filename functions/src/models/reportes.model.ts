@@ -2,6 +2,23 @@ import type {MetodoPago} from "./caja.model";
 
 export type {MetodoPago};
 
+// ─── Agregado histórico de más vendidos ───────────────────────────────────────
+// Almacenado en analytics/masVendidos. Se actualiza en cada venta (transacción
+// atómica). Clave: `${articulo}|${talle}`.
+
+export interface EntradaAgregadoMasVendidos {
+  productoId: string;
+  nombre: string;
+  articulo: string;
+  talle: string;
+  marca: string;
+  categoria: string;
+  totalUnidades: number;
+  totalIngresos: number;
+}
+
+export type AgregadoMasVendidos = Record<string, EntradaAgregadoMasVendidos>;
+
 export interface ItemVentaReportes {
   productoId: string;
   nombre: string;

@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Printer, CheckCircle2, X, Loader2, Share2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import QRCode from 'qrcode'
+import { Printer, CheckCircle2, X, Loader2, Share2, AlertTriangle } from 'lucide-react'
 import type { Ticket } from '../../../types/caja.types'
 import { LABELS_METODO_PAGO } from '../../../types/caja.types'
 
@@ -20,8 +21,16 @@ const formatearFecha = (iso: string) =>
     minute: '2-digit',
   })
 
+const formatearVtoCae = (yyyymmdd: string): string => {
+  if (yyyymmdd.length !== 8) return yyyymmdd
+  return `${yyyymmdd.slice(6)}/${yyyymmdd.slice(4, 6)}/${yyyymmdd.slice(0, 4)}`
+}
+
+const nroComprobante = (ptoVta: number, nro: number): string =>
+  `${String(ptoVta).padStart(4, '0')}-${String(nro).padStart(8, '0')}`
+
 // ─── HTML para impresora física (80 mm, monospace) ────────────────────────────
-function generarHtmlTicket(ticket: Ticket): string {
+function generarHtmlTicket(ticket: Ticket, qrDataUrl?: string): string {
   const filas = ticket.lineas
     .map(
       (l) => `
@@ -35,6 +44,13 @@ function generarHtmlTicket(ticket: Ticket): string {
 
   const clienteHtml = ticket.cliente?.nombre
     ? `<p>Cliente: <strong>${ticket.cliente.nombre}</strong>${ticket.cliente.telefono ? ` · ${ticket.cliente.telefono}` : ''}</p>`
+    : ''
+
+  const qrHtml = ticket.arcaFactura && qrDataUrl
+    ? `<div style="text-align:center;margin-top:8px;">
+        <img src="${qrDataUrl}" alt="QR ARCA" style="width:80px;height:80px;display:block;margin:0 auto 3px;">
+        <span style="font-size:9px;color:#555;">Verificar en afip.gob.ar/fe/qr</span>
+       </div>`
     : ''
 
   return `<!DOCTYPE html>
@@ -58,13 +74,15 @@ function generarHtmlTicket(ticket: Ticket): string {
     .total-row { margin-top:8px; font-size:14px; font-weight:bold; display:flex; justify-content:space-between; }
     .metodo { font-size:11px; margin-top:4px; }
     .footer { text-align:center; font-size:10px; color:#555; margin-top:10px; border-top:1px dashed #000; padding-top:8px; line-height:1.8; }
+    .cae { margin-top:10px; padding:6px 0; border-top:1px dashed #000; font-size:10px; line-height:1.9; }
+    .cae .label { font-weight:bold; font-size:9px; text-transform:uppercase; }
     @media print { body { width:80mm; } @page { size:80mm auto; margin:0; } }
   </style>
 </head>
 <body>
-  <div class="header"><h1>H&amp;H BLEND</h1></div>
+  <div class="header"><h1>H&amp;H BLEND</h1>${ticket.arcaFactura ? '<p style="font-size:11px;font-weight:bold;">FACTURA C</p>' : ''}</div>
   <div class="info">
-    <p>Ticket N°: <strong>${ticket.numero}</strong></p>
+    ${ticket.arcaFactura ? `<p>Comp. N°: <strong>${nroComprobante(ticket.arcaFactura.ptoVta, ticket.arcaFactura.nroComprobante)}</strong></p>` : `<p>Ticket N°: <strong>${ticket.numero}</strong></p>`}
     <p>Fecha: ${formatearFecha(ticket.fecha)}</p>
     ${clienteHtml}
   </div>
@@ -75,13 +93,19 @@ function generarHtmlTicket(ticket: Ticket): string {
   <div class="divider"></div>
   <div class="total-row"><span>TOTAL</span><span>${fmt(ticket.total)}</span></div>
   <div class="metodo">Pago: ${LABELS_METODO_PAGO[ticket.metodoPago]}</div>
+  ${ticket.arcaFactura ? `
+  <div class="cae">
+    <p><span class="label">CAE:</span> ${ticket.arcaFactura.cae}</p>
+    <p><span class="label">Vto. CAE:</span> ${formatearVtoCae(ticket.arcaFactura.caeFchVto)}</p>
+    ${qrHtml}
+  </div>` : ''}
   <div class="footer"><p>¡Gracias por tu compra!</p><p>H&amp;H Blend</p></div>
 </body>
 </html>`
 }
 
-function abrirPopupImpresion(ticket: Ticket): void {
-  const blob = new Blob([generarHtmlTicket(ticket)], { type: 'text/html;charset=utf-8' })
+function abrirPopupImpresion(ticket: Ticket, qrDataUrl?: string): void {
+  const blob = new Blob([generarHtmlTicket(ticket, qrDataUrl)], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const popup = window.open(url, '_blank', 'width=420,height=680,menubar=no,toolbar=no')
   if (!popup) {
@@ -97,21 +121,28 @@ function abrirPopupImpresion(ticket: Ticket): void {
 }
 
 // ─── Tarjeta premium para WhatsApp (Canvas, alta resolución) ──────────────────
-// Usa devicePixelRatio para eliminar el pixelado en pantallas retina.
-// Diseño de tarjeta: barra dorada, tipografía sans-serif, jerarquía visual.
-async function generarImagenPng(ticket: Ticket): Promise<Blob> {
-  // Mínimo 2× para que se vea nítido en cualquier pantalla
+async function generarImagenPng(ticket: Ticket, qrDataUrl?: string): Promise<Blob> {
+  // Pre-cargar imagen QR antes de empezar a dibujar
+  let qrImg: HTMLImageElement | null = null
+  if (qrDataUrl) {
+    qrImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = qrDataUrl
+    })
+  }
+
   const DPR = Math.max(window.devicePixelRatio || 1, 2)
 
-  const W = 480            // ancho lógico en px
-  const MRG = 32           // margen lateral
+  const W = 480
+  const MRG = 32
   const GOLD = '#f59e0b'
   const BLACK = '#111111'
   const GRAY = '#6b7280'
   const LGRAY = '#e5e7eb'
   const WHITE = '#ffffff'
 
-  // Fuentes (system-ui es sans-serif nativa sin necesidad de cargar nada)
   const SANS = "system-ui, -apple-system, 'Segoe UI', sans-serif"
   const fBrand  = `bold 26px ${SANS}`
   const fLabel  = `600 11px ${SANS}`
@@ -120,14 +151,12 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
   const fSmall  = `400 12px ${SANS}`
   const fTotal  = `700 22px ${SANS}`
 
-  // ── Canvas de trabajo (sobredimensionado para recortar al final) ───────────
   const canvasTmp = document.createElement('canvas')
   canvasTmp.width  = W * DPR
-  canvasTmp.height = 1400 * DPR   // altura máxima estimada; se recorta
+  canvasTmp.height = 1400 * DPR
   const ctx = canvasTmp.getContext('2d')!
   ctx.scale(DPR, DPR)
 
-  // Helpers
   const fill = (color: string) => { ctx.fillStyle = color }
   const font = (f: string) => { ctx.font = f }
   const align = (a: CanvasTextAlign) => { ctx.textAlign = a }
@@ -139,32 +168,27 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
     ctx.fillRect(MRG, y, W - MRG * 2, 1)
     ctx.restore()
   }
-  // Texto con longitud máxima, con truncado automático
   const textTrunc = (t: string, x: number, y: number, maxW: number) => {
     let s = t
     while (ctx.measureText(s).width > maxW && s.length > 1) s = s.slice(0, -1)
     ctx.fillText(s !== t ? s.slice(0, -1) + '…' : s, x, y)
   }
 
-  // ── Fondo blanco ───────────────────────────────────────────────────────────
   fill(WHITE)
   ctx.fillRect(0, 0, W, 1400)
 
   let y = 0
 
-  // ── Barra dorada superior ──────────────────────────────────────────────────
   fill(GOLD)
   ctx.fillRect(0, 0, W, 6)
   y = 6
 
-  // ── Header ────────────────────────────────────────────────────────────────
   y += 32
   font(fBrand); fill(BLACK); align('center')
   text('H&H BLEND', W / 2, y)
 
   y += 24; line(y); y += 20
 
-  // ── Ticket + Fecha (dos columnas) ─────────────────────────────────────────
   const COL2 = W / 2 + 8
   font(fLabel); fill(GRAY); align('left')
   text('COMPROBANTE', MRG, y)
@@ -177,7 +201,6 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
   text(formatearFecha(ticket.fecha), COL2, y)
   y += 24
 
-  // ── Cliente ───────────────────────────────────────────────────────────────
   if (ticket.cliente?.nombre) {
     font(fLabel); fill(GRAY); align('left')
     text('CLIENTE', MRG, y)
@@ -194,17 +217,14 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
 
   y += 4; line(y); y += 18
 
-  // ── Cabecera tabla ────────────────────────────────────────────────────────
   font(fLabel); fill(GRAY)
   align('left');  text('ARTÍCULO', MRG, y)
   align('center'); text('CANT', W * 0.73, y)
   align('right');  text('SUBTOTAL', W - MRG, y)
   y += 10; line(y); y += 16
 
-  // ── Ítems ─────────────────────────────────────────────────────────────────
   const MAX_DESC = W * 0.56 - MRG
   for (const linea of ticket.lineas) {
-    // Nombre del producto
     font(fBold); fill(BLACK); align('left')
     textTrunc(linea.descripcion, MRG, y, MAX_DESC)
 
@@ -215,7 +235,6 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
     text(fmt(linea.subtotal), W - MRG, y)
     y += 18
 
-    // Sub-línea con detalle
     font(fSmall); fill(GRAY); align('left')
     text(`${linea.articulo}  ·  T: ${linea.talle}  ·  ${fmt(linea.precioUnitario)} c/u`, MRG, y)
     y += 24
@@ -223,7 +242,6 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
 
   y += 4; line(y); y += 20
 
-  // ── Total ─────────────────────────────────────────────────────────────────
   font(fTotal); fill(BLACK); align('left')
   text('TOTAL', MRG, y)
   font(fTotal); fill(GOLD); align('right')
@@ -236,7 +254,39 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
 
   line(y); y += 20
 
-  // ── Footer ────────────────────────────────────────────────────────────────
+  // ── CAE + QR ─────────────────────────────────────────────────────────────────
+  if (ticket.arcaFactura) {
+    const QR_SIZE = 72
+    const QR_X = W - MRG - QR_SIZE
+    const yInicioBloque = y
+
+    font(fLabel); fill(GRAY); align('left')
+    text('FACTURA C — COMPROBANTE AUTORIZADO', MRG, y)
+    y += 16
+
+    font(fSmall); fill(BLACK)
+    text(`CAE: ${ticket.arcaFactura.cae}`, MRG, y)
+    y += 14
+
+    font(fSmall); fill(GRAY)
+    text(`Vto: ${formatearVtoCae(ticket.arcaFactura.caeFchVto)}`, MRG, y)
+    y += 14
+
+    font(fSmall); fill(GRAY)
+    text(`Comp. N° ${nroComprobante(ticket.arcaFactura.ptoVta, ticket.arcaFactura.nroComprobante)}`, MRG, y)
+    y += 10
+
+    if (qrImg) {
+      // QR alineado verticalmente al centro del bloque de texto
+      const qrY = yInicioBloque - 10
+      ctx.drawImage(qrImg, QR_X, qrY, QR_SIZE, QR_SIZE)
+      // Asegurar que y supere el QR
+      y = Math.max(y, qrY + QR_SIZE + 6)
+    }
+
+    y += 12; line(y); y += 16
+  }
+
   font(`400 13px ${SANS}`); fill(GRAY); align('center')
   text('¡Gracias por tu compra!', W / 2, y)
   y += 18
@@ -244,12 +294,10 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
   text('H&H BLEND', W / 2, y)
   y += 32
 
-  // ── Barra dorada inferior (simetría) ─────────────────────────────────────
   fill(GOLD)
   ctx.fillRect(0, y, W, 4)
   y += 4
 
-  // ── Recortar canvas a la altura real usada ────────────────────────────────
   const canvasFinal = document.createElement('canvas')
   canvasFinal.width  = W * DPR
   canvasFinal.height = y * DPR
@@ -267,27 +315,10 @@ async function generarImagenPng(ticket: Ticket): Promise<Blob> {
 }
 
 // ─── Compartir imagen ─────────────────────────────────────────────────────────
-// Estrategia según contexto:
-//
-// 1. Número de teléfono conocido (desktop):
-//    → Copia el PNG al portapapeles
-//    → Abre WhatsApp Web directamente al chat de ese número
-//    → El usuario sólo hace Ctrl+V (o pega) y envía
-//
-// 2. Sin número (móvil/tablet con Web Share API):
-//    → Abre el selector nativo del SO → el usuario elige WhatsApp
-//
-// 3. Sin número (desktop sin Web Share API):
-//    → Descarga el PNG para adjuntarlo manualmente
-//
-// Limitación conocida: ninguna API del browser permite adjuntar un archivo
-// a un contacto específico de WhatsApp sin intervención del usuario.
-// Para eso se necesitaría WhatsApp Business API (integración server-side futura).
-async function compartirImagen(ticket: Ticket): Promise<'clipboard' | 'share' | 'download'> {
-  const blob = await generarImagenPng(ticket)
+async function compartirImagen(ticket: Ticket, qrDataUrl?: string): Promise<'clipboard' | 'share' | 'download'> {
+  const blob = await generarImagenPng(ticket, qrDataUrl)
   const telefono = ticket.cliente?.telefono?.replace(/\D/g, '') ?? ''
 
-  // ── Estrategia 1: tenemos teléfono → clipboard + abrir chat directo ──────
   if (telefono) {
     try {
       await navigator.clipboard.write([
@@ -301,11 +332,10 @@ async function compartirImagen(ticket: Ticket): Promise<'clipboard' | 'share' | 
       )
       return 'clipboard'
     } catch {
-      // Clipboard bloqueado (HTTP, permisos denegados) → fallback a share/download
+      // Clipboard bloqueado → fallback
     }
   }
 
-  // ── Estrategia 2: móvil/tablet con Web Share API ──────────────────────────
   const nombre = `ticket-${ticket.numero}.png`
   const file = new File([blob], nombre, { type: 'image/png' })
   if (navigator.canShare?.({ files: [file] })) {
@@ -313,7 +343,6 @@ async function compartirImagen(ticket: Ticket): Promise<'clipboard' | 'share' | 
     return 'share'
   }
 
-  // ── Estrategia 3: descarga directa ────────────────────────────────────────
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -332,20 +361,27 @@ interface ModalTicketProps {
 export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
   const [compartiendo, setCompartiendo] = useState(false)
   const [mensajePost, setMensajePost] = useState<string | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState<string | undefined>(undefined)
 
-  const handleImprimir = () => abrirPopupImpresion(ticket)
+  useEffect(() => {
+    if (!ticket.arcaFactura?.qrUrl) return
+    QRCode.toDataURL(ticket.arcaFactura.qrUrl, { width: 160, margin: 1 })
+      .then(setQrDataUrl)
+      .catch(() => { /* QR no crítico */ })
+  }, [ticket.arcaFactura?.qrUrl])
+
+  const handleImprimir = () => abrirPopupImpresion(ticket, qrDataUrl)
 
   const handleCompartir = async () => {
     setCompartiendo(true)
     setMensajePost(null)
     try {
-      const resultado = await compartirImagen(ticket)
+      const resultado = await compartirImagen(ticket, qrDataUrl)
       if (resultado === 'clipboard') {
         setMensajePost('Imagen copiada. WhatsApp se abrió al chat del cliente — pegá con Ctrl+V y enviá.')
       } else if (resultado === 'download') {
         setMensajePost('Imagen descargada — adjuntala en WhatsApp del cliente.')
       }
-      // 'share' no necesita mensaje: el selector nativo ya guió al usuario
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') console.error(err)
     } finally {
@@ -433,6 +469,51 @@ export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
           </div>
         </div>
 
+        {/* CAE — comprobante legal */}
+        {ticket.arcaFactura && (
+          <div className="mx-6 mb-1 bg-emerald-950/40 border border-emerald-800/60 rounded-lg px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
+                  Factura C — Comprobante autorizado ARCA
+                </p>
+                <p className="text-xs text-emerald-300 font-mono truncate">
+                  CAE: {ticket.arcaFactura.cae}
+                </p>
+                <div className="flex justify-between text-[11px] text-emerald-400/70">
+                  <span>Vto. {formatearVtoCae(ticket.arcaFactura.caeFchVto)}</span>
+                  <span>N° {nroComprobante(ticket.arcaFactura.ptoVta, ticket.arcaFactura.nroComprobante)}</span>
+                </div>
+              </div>
+              {qrDataUrl && (
+                <a
+                  href={ticket.arcaFactura.qrUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Verificar en AFIP"
+                  className="shrink-0"
+                >
+                  <img
+                    src={qrDataUrl}
+                    alt="QR verificación ARCA"
+                    className="w-16 h-16 rounded border border-emerald-700/40"
+                  />
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Advertencia si ARCA falló */}
+        {ticket.arcaError && (
+          <div className="mx-6 mb-1 flex items-start gap-2 bg-amber-950/40 border border-amber-800/60 rounded-lg px-4 py-3">
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-300">
+              La venta fue registrada, pero ARCA no pudo emitir la factura. Avisá al administrador.
+            </p>
+          </div>
+        )}
+
         {/* Feedback post-compartir */}
         {mensajePost && (
           <p className="mx-6 mb-1 text-xs text-neutral-400 text-center leading-relaxed">
@@ -443,7 +524,6 @@ export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
         {/* Acciones */}
         <div className="grid grid-cols-3 gap-2 px-6 pb-6 pt-3">
 
-          {/* Nueva venta */}
           <button
             type="button"
             onClick={onCerrar}
@@ -453,7 +533,6 @@ export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
             Nueva venta
           </button>
 
-          {/* Imprimir */}
           <button
             type="button"
             onClick={handleImprimir}
@@ -463,7 +542,6 @@ export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
             Imprimir
           </button>
 
-          {/* WhatsApp / Compartir imagen */}
           <button
             type="button"
             onClick={handleCompartir}

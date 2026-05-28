@@ -62,43 +62,14 @@ export interface ResumenReportes {
 export type PeriodoMasVendidos = 'historico' | 'mes'
 
 // ─── Contratos del API (request / response) ────────────────────────────────────
-// Al conectar el backend real, reemplazar la implementación mock en reportes.service.ts
-// sin modificar estas interfaces.
 
-export interface IResumenReportesRequest {
-  mes: number   // 1–12
-  anio: number
-}
-export interface IResumenReportesResponse {
+export interface IReportesMesResponse {
   resumen: ResumenReportes
+  historial: VentaHistorial[]
+  masVendidosMes: ProductoMasVendido[]
+  resumenDiario: ResumenDiario[]
 }
 
-export interface IHistorialVentasRequest {
-  mes: number
-  anio: number
-  pagina: number        // base 1
-  porPagina: number
-}
-export interface IHistorialVentasResponse {
-  ventas: VentaHistorial[]
-  totalPaginas: number
-  totalRegistros: number
-}
-
-export interface IMasVendidosRequest {
-  periodo: PeriodoMasVendidos
-  mes?: number          // requerido si periodo === 'mes'
-  anio?: number         // requerido si periodo === 'mes'
-  limite?: number       // default 5
-}
-export interface IMasVendidosResponse {
+export interface IHistoricoResponse {
   productos: ProductoMasVendido[]
-}
-
-export interface IResumenDiarioRequest {
-  mes: number
-  anio: number
-}
-export interface IResumenDiarioResponse {
-  dias: ResumenDiario[] // solo días con al menos 1 venta
 }

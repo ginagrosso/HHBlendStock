@@ -17,8 +17,15 @@ const schemaCliente = z.object({
   telefono: z.string().min(1, "El teléfono del cliente es requerido"),
 });
 
+const schemaDocReceptor = z.object({
+  /** 96 = DNI, 80 = CUIT */
+  tipo: z.union([z.literal(96), z.literal(80)]),
+  nro: z.number().int().positive("Número de documento inválido"),
+});
+
 export const schemaFinalizarVenta = z.object({
   items: z.array(schemaItemVenta).min(1, "El carrito no puede estar vacío"),
   metodoPago: z.enum(["efectivo", "tarjeta", "transferencia"]),
   cliente: schemaCliente.optional(),
+  docReceptor: schemaDocReceptor.optional(),
 });

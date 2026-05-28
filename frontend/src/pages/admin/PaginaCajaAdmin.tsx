@@ -57,6 +57,7 @@ export function PaginaCajaAdmin() {
           metodoPago={caja.metodoPago}
           procesando={caja.procesando}
           erroPago={caja.erroPago}
+          arcaConfig={caja.arcaConfig}
           calcularTotal={caja.calcularTotal}
           onSeleccionarMetodo={caja.seleccionarMetodoPago}
           onVolver={caja.volverAlCarrito}

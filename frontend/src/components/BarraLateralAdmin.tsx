@@ -7,6 +7,7 @@ import {
   BadgeDollarSign,
   BarChart2,
   Box,
+  FileText,
   LogOut,
   Settings,
 } from 'lucide-react';
@@ -26,6 +27,11 @@ const enlaces = [
     etiqueta: 'Reportes',
     ruta: '/admin/reportes',
     Icono: BarChart2,
+  },
+  {
+    etiqueta: 'Facturación',
+    ruta: '/admin/facturacion',
+    Icono: FileText,
   },
 ];
 

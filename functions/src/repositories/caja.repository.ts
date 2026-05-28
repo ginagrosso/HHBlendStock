@@ -3,7 +3,9 @@ import {db} from "../config/firebase";
 import {AppError} from "../middleware/error.middleware";
 import type {LineaVenta, MetodoPago, ClienteVenta, Venta, VentaRespuesta} from "../models/caja.model";
 import type {Ficha} from "../models/producto.model";
+import type {AgregadoMasVendidos} from "../models/reportes.model";
 import type {FinalizarVentaDTO} from "../dtos/caja.dto";
+import {AGREGADO_REF, computarActualizacionAgregado} from "./reportes.repository";
 
 export interface ProductoCajaData {
   id: string;
@@ -74,56 +76,61 @@ export const cajaRepository = {
   ): Promise<VentaRespuesta> {
     const contadorRef = db.collection("contadores").doc("ventas");
     const ventaRef = db.collection("ventas").doc();
-    // productoId en el carrito = fichaId
-    const fichaRefs = items.map((item) => db.collection("productos").doc(item.productoId));
 
     const resultado = await db.runTransaction(async (tx) => {
-      // Fase 1: leer todos los documentos antes de cualquier escritura
-      const [contadorSnap, ...fichaSnaps] = await Promise.all([
+      // Fase 1: leer fichas únicas (un mismo productoId puede aparecer en varios items
+      // con distintos talles — leer y escribir el mismo doc dos veces en una transacción
+      // hace que el segundo tx.update sobreescriba al primero, perdiendo el primer descuento).
+      const fichaIdsUnicas = [...new Set(items.map((i) => i.productoId))];
+      const fichaRefsUnicas = fichaIdsUnicas.map((id) => db.collection("productos").doc(id));
+
+      const [contadorSnap, agregadoSnap, ...fichaSnaps] = await Promise.all([
         tx.get(contadorRef),
-        ...fichaRefs.map((ref) => tx.get(ref)),
+        tx.get(AGREGADO_REF),
+        ...fichaRefsUnicas.map((ref) => tx.get(ref)),
       ]);
 
-      // Fase 2: validar stock y construir líneas de venta
+      // Mapa fichaId → copia mutable de variantes (acumula todos los descuentos del carrito)
+      type FichaEnProceso = {ref: FirebaseFirestore.DocumentReference; ficha: Ficha; variantes: Ficha["variantes"]};
+      const fichasEnProceso = new Map<string, FichaEnProceso>();
+      fichaIdsUnicas.forEach((id, i) => {
+        if (!fichaSnaps[i].exists) throw new AppError(404, `Producto ${id} no encontrado`);
+        const ficha = fichaSnaps[i].data()! as Ficha;
+        fichasEnProceso.set(id, {
+          ref: fichaRefsUnicas[i],
+          ficha,
+          variantes: ficha.variantes.map((v) => ({...v})),
+        });
+      });
+
+      // Fase 2: validar stock y acumular descuentos en la copia mutable
       const lineas: LineaVenta[] = [];
-      const fichasActualizadas: {index: number; variantes: Ficha["variantes"]}[] = [];
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const snap = fichaSnaps[i];
-
-        if (!snap.exists) {
-          throw new AppError(404, `Producto ${item.productoId} no encontrado`);
-        }
-
-        const ficha = snap.data()! as Ficha;
-        const varianteIndex = ficha.variantes.findIndex((v) => v.talle === item.talle);
+      for (const item of items) {
+        const enProceso = fichasEnProceso.get(item.productoId)!;
+        const varianteIndex = enProceso.variantes.findIndex((v) => v.talle === item.talle);
 
         if (varianteIndex === -1) {
-          throw new AppError(404, `Talle "${item.talle}" no encontrado en ${ficha.nombre}`);
+          throw new AppError(404, `Talle "${item.talle}" no encontrado en ${enProceso.ficha.nombre}`);
         }
 
-        const variante = ficha.variantes[varianteIndex];
-
+        const variante = enProceso.variantes[varianteIndex];
         if (variante.stock < item.cantidad) {
-          throw new AppError(409, `Stock insuficiente para "${ficha.nombre}" talle ${item.talle}`);
+          throw new AppError(409, `Stock insuficiente para "${enProceso.ficha.nombre}" talle ${item.talle}`);
         }
 
-        const variantesActualizadas = ficha.variantes.map((v, idx) =>
-          idx === varianteIndex ? {...v, stock: v.stock - item.cantidad} : v
-        );
-        fichasActualizadas.push({index: i, variantes: variantesActualizadas});
+        enProceso.variantes[varianteIndex] = {...variante, stock: variante.stock - item.cantidad};
 
         lineas.push({
-          productoId: ficha.id,
-          descripcion: ficha.nombre,
+          productoId: enProceso.ficha.id,
+          descripcion: enProceso.ficha.nombre,
           articulo: item.articulo,
           talle: item.talle,
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
           subtotal: item.precioUnitario * item.cantidad,
-          marca: ficha.marca,
-          categoria: ficha.categoria,
+          marca: enProceso.ficha.marca,
+          categoria: enProceso.ficha.categoria,
         });
       }
 
@@ -135,14 +142,11 @@ export const cajaRepository = {
       // Fase 4: calcular total
       const total = lineas.reduce((acc, l) => acc + l.subtotal, 0);
 
-      // Fase 5: escribir todo atómicamente
+      // Fase 5: escribir todo atómicamente — una escritura por ficha única
       tx.set(contadorRef, {ultimo: nuevo}, {merge: true});
 
-      for (const {index, variantes} of fichasActualizadas) {
-        tx.update(fichaRefs[index], {
-          variantes,
-          actualizadoEn: FieldValue.serverTimestamp(),
-        });
+      for (const {ref, variantes} of fichasEnProceso.values()) {
+        tx.update(ref, {variantes, actualizadoEn: FieldValue.serverTimestamp()});
       }
 
       const fecha = Timestamp.now();
@@ -158,6 +162,13 @@ export const cajaRepository = {
       if (cliente) venta.cliente = cliente;
 
       tx.set(ventaRef, venta);
+
+      // Solo actualizar si ya existe: si no existe, leerAgregado() lo inicializa
+      // desde el historial completo en la próxima consulta de reportes.
+      if (agregadoSnap.exists) {
+        const agregadoActual = agregadoSnap.data() as AgregadoMasVendidos;
+        tx.set(AGREGADO_REF, computarActualizacionAgregado(agregadoActual, lineas));
+      }
 
       return venta;
     });

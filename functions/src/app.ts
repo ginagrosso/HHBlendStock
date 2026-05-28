@@ -4,6 +4,7 @@ import {manejarError} from "./middleware/error.middleware";
 import {inventarioRouter} from "./routers/inventario.router";
 import {cajaRouter} from "./routers/caja.router";
 import {reportesRouter} from "./routers/reportes.router";
+import {facturacionRouter} from "./routers/facturacion.router";
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use("/inventario", inventarioRouter);
 app.use("/caja", cajaRouter);
 app.use("/reportes", reportesRouter);
+app.use("/facturacion", facturacionRouter);
 
 app.use(manejarError);
 
