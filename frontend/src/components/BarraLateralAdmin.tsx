@@ -54,6 +54,7 @@ export function BarraLateralAdmin() {
 
   return (
     <>
+    {/* Desktop sidebar */}
     <nav className="hidden md:flex flex-col h-screen overflow-y-auto fixed left-0 top-0 w-64 border-r border-neutral-900 bg-black z-50">
       <div className="px-6 py-8 border-b border-neutral-900">
         <h1 className="text-xl font-bold tracking-[0.2em] text-amber-500 uppercase">
@@ -97,6 +98,48 @@ export function BarraLateralAdmin() {
           <span>Cerrar sesión</span>
         </button>
       </div>
+    </nav>
+
+    {/* Mobile top header */}
+    <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-black border-b border-neutral-900 flex items-center justify-between px-4 h-14">
+      <h1 className="text-base font-bold tracking-[0.2em] text-amber-500 uppercase">
+        H&H BLEND
+      </h1>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={abrirAjustes}
+          className="p-2 text-neutral-500 hover:text-amber-200 transition-colors"
+        >
+          <Settings className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleCerrarSesion}
+          className="p-2 text-neutral-500 hover:text-amber-200 transition-colors"
+        >
+          <LogOut className="h-5 w-5" />
+        </button>
+      </div>
+    </header>
+
+    {/* Mobile bottom nav */}
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-black border-t border-neutral-900 flex">
+      {enlaces.map(({ etiqueta, ruta, Icono }) => (
+        <NavLink
+          key={ruta}
+          to={ruta}
+          className={({ isActive }) =>
+            [
+              'flex-1 flex flex-col items-center justify-center py-2 gap-1 text-xs transition-colors',
+              isActive ? 'text-amber-500' : 'text-neutral-500',
+            ].join(' ')
+          }
+        >
+          <Icono className="h-5 w-5" />
+          <span>{etiqueta}</span>
+        </NavLink>
+      ))}
     </nav>
 
     {modalAjustes && usuario && (

@@ -8,7 +8,7 @@ export function LayoutAdmin() {
       <BarraLateralAdmin />
       <ToastsAdmin />
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative">
-        <main className="flex-1 pt-6 px-8 pb-12">
+        <main className="flex-1 flex flex-col pt-20 md:pt-6 px-4 md:px-8 pb-28 md:pb-12">
           <Outlet />
         </main>
       </div>

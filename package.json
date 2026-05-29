@@ -2,18 +2,17 @@
   "name": "hhblendstock-root",
   "private": true,
   "workspaces": [
-    "frontend",
-    "functions"
+    "frontend"
   ],
   "scripts": {
-    "install:all": "npm install",
-    "dev:parallel": "concurrently -n emulators,functions,frontend -c yellow,cyan,green \"npm run emulators\" \"npm -w functions run build:watch\" \"npm -w frontend run dev\"",
-    "dev:prebuild": "npm -w functions run build && npm run dev:parallel",
+    "install:all": "npm install && npm --prefix functions install",
+    "dev:parallel": "concurrently -n emulators,functions,frontend -c yellow,cyan,green \"npm run emulators\" \"npm --prefix functions run build:watch\" \"npm -w frontend run dev\"",
+    "dev:prebuild": "npm --prefix functions run build && npm run dev:parallel",
     "dev": "powershell -ExecutionPolicy Bypass -File ./dev.ps1 -WithFrontend -Watch",
     "emulators": "firebase emulators:start --only auth,firestore,functions,hosting,storage",
-    "build": "npm -w functions run build && npm -w frontend run build",
+    "build": "npm --prefix functions run build && npm -w frontend run build",
     "verify": "npm run lint && npm run build",
-    "lint": "npm -w functions run lint && npm -w frontend run lint",
+    "lint": "npm --prefix functions run lint && npm -w frontend run lint",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:hosting": "firebase deploy --only hosting",
     "deploy": "firebase deploy",

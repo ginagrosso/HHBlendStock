@@ -8,8 +8,13 @@ import {facturacionRouter} from "./routers/facturacion.router";
 
 const app = express();
 
+app.options("*", corsMiddleware);
 app.use(corsMiddleware);
 app.use(express.json());
+app.use((req, _res, next) => {
+  if (req.url.startsWith("/api/")) req.url = req.url.slice(4);
+  next();
+});
 
 app.use("/inventario", inventarioRouter);
 app.use("/caja", cajaRouter);

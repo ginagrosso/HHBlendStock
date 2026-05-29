@@ -43,6 +43,7 @@ export function PaginaFacturacionAdmin() {
   }, [cargarRecientes]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (config) setMontoInput(String(config.montoMaximoAnonimo));
   }, [config]);
 

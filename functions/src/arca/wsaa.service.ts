@@ -80,9 +80,9 @@ export const wsaaService = {
     }
 
     const expStr = header?.["expirationTime"] as string | undefined;
-    const expiresAt = expStr
-      ? Timestamp.fromDate(new Date(expStr))
-      : Timestamp.fromMillis(Date.now() + 11 * 60 * 60 * 1000); // fallback 11 horas
+    const expiresAt = expStr ?
+      Timestamp.fromDate(new Date(expStr)) :
+      Timestamp.fromMillis(Date.now() + 11 * 60 * 60 * 1000); // fallback 11 horas
 
     const ticket: TicketCacheado = {token, sign, expiresAt};
     await db.doc(TICKET_DOC).set(ticket);

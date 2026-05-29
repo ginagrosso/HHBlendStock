@@ -81,8 +81,9 @@ function calcularMontos(cbteTipo: number, total: number): Montos {
   if (suma !== montos.total) {
     throw new AppError(
       500,
-      `[calcularMontos] Desequilibrio de importes para cbteTipo ${cbteTipo}: ` +
-        `ImpNeto(${montos.impNeto}) + ImpTotConc(${montos.impTotConc}) + ImpIVA(${montos.impIVA}) = ${suma} ≠ ImpTotal(${montos.total})`
+      `[calcularMontos] Desequilibrio cbteTipo ${cbteTipo}: ` +
+        `Neto=${montos.impNeto} TotConc=${montos.impTotConc} IVA=${montos.impIVA} ` +
+        `suma=${suma} ≠ total=${montos.total}`
     );
   }
 
@@ -220,11 +221,11 @@ export const wsfeService = {
     if (!det || det.Resultado !== "A") {
       const obs = det?.Observaciones as {Obs?: unknown} | undefined;
       const obsItem = obs?.Obs;
-      const obsMsg = obsItem
-        ? Array.isArray(obsItem)
-          ? (obsItem as {Msg: string}[]).map((o) => o.Msg).join(", ")
-          : (obsItem as {Msg: string}).Msg
-        : "Resultado rechazado sin observaciones";
+      const obsMsg = obsItem ?
+        Array.isArray(obsItem) ?
+          (obsItem as {Msg: string}[]).map((o) => o.Msg).join(", ") :
+          (obsItem as {Msg: string}).Msg :
+        "Resultado rechazado sin observaciones";
       throw new AppError(422, `ARCA rechazó el comprobante: ${obsMsg}`);
     }
 

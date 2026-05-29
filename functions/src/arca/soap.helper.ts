@@ -25,7 +25,7 @@ export async function soapPost<T>(
     const response = await axios.post<string>(url, envelope, {
       headers: {
         "Content-Type": "text/xml;charset=utf-8",
-        SOAPAction: soapAction,
+        "SOAPAction": soapAction,
       },
       responseType: "text",
       timeout: 30_000,

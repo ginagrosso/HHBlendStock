@@ -75,6 +75,7 @@ export function useReportes(): UseReportesReturn {
   // Una sola llamada al backend por cambio de mes/año
   useEffect(() => {
     let cancelado = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCargandoMes(true)
     setPagina(1)
 
@@ -90,18 +91,12 @@ export function useReportes(): UseReportesReturn {
     return () => { cancelado = true }
   }, [mes, anio])
 
-  // Cuando masVendidosMes se actualiza y el período activo es 'mes', sincronizar masVendidos
-  useEffect(() => {
-    if (periodoMasVendidos === 'mes') {
-      setMasVendidos(masVendidosMes)
-    }
-  }, [masVendidosMes, periodoMasVendidos])
-
   // Cuando el período cambia a 'historico', leer el agregado (1 doc Firestore)
   useEffect(() => {
     if (periodoMasVendidos !== 'historico') return
 
     let cancelado = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCargandoMasVendidos(true)
 
     reportesService.obtenerHistorico(10).then((resp) => {
@@ -118,15 +113,19 @@ export function useReportes(): UseReportesReturn {
   const inicio = (pagina - 1) * POR_PAGINA
   const ventas = todasLasVentas.slice(inicio, inicio + POR_PAGINA)
 
-  const irMesAnterior = useCallback(() => {
-    if (mes === 1) { setMes(12); setAnio((a) => a - 1) }
-    else setMes((m) => m - 1)
-  }, [mes])
+  const irMesAnterior = () => {
+    setMes((m) => {
+      if (m === 1) { setAnio((a) => a - 1); return 12 }
+      return m - 1
+    })
+  }
 
-  const irMesSiguiente = useCallback(() => {
-    if (mes === 12) { setMes(1); setAnio((a) => a + 1) }
-    else setMes((m) => m + 1)
-  }, [mes])
+  const irMesSiguiente = () => {
+    setMes((m) => {
+      if (m === 12) { setAnio((a) => a + 1); return 1 }
+      return m + 1
+    })
+  }
 
   const irPagina = useCallback((p: number) => setPagina(p), [])
   const abrirDetalle = useCallback((v: VentaHistorial) => setVentaSeleccionada(v), [])
@@ -140,7 +139,8 @@ export function useReportes(): UseReportesReturn {
     resumen, cargandoResumen: cargandoMes,
     ventas, cargandoHistorial: cargandoMes, pagina, totalPaginas, irPagina,
     ventaSeleccionada, abrirDetalle, cerrarDetalle,
-    masVendidos, periodoMasVendidos, cambiarPeriodoMasVendidos, cargandoMasVendidos,
+    masVendidos: periodoMasVendidos === 'mes' ? masVendidosMes : masVendidos,
+    periodoMasVendidos, cambiarPeriodoMasVendidos, cargandoMasVendidos,
     resumenDiario, cargandoGrafico: cargandoMes,
   }
 }

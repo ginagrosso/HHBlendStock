@@ -22,20 +22,18 @@ export const arcaConfig = {
   cbteTipo: parseInt(process.env.ARCA_CBTE_TIPO ?? "11", 10),
 
   wsaa: {
-    url:
-      ENV === "production"
-        ? "https://wsaa.afip.gov.ar/ws/services/LoginCms"
-        : "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
+    url: ENV === "production" ?
+      "https://wsaa.afip.gov.ar/ws/services/LoginCms" :
+      "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
     service: "wsfe",
     /** Margen de renovación: renueva el ticket si le quedan menos de 5 minutos */
     margenRenovacionMs: 5 * 60 * 1000,
   },
 
   wsfe: {
-    url:
-      ENV === "production"
-        ? "https://servicios1.afip.gov.ar/wsfev1/service.asmx"
-        : "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
+    url: ENV === "production" ?
+      "https://servicios1.afip.gov.ar/wsfev1/service.asmx" :
+      "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
     namespace: "http://ar.gov.afip.dif.FEV1/",
     soapActionBase: "http://ar.gov.afip.dif.FEV1/",
   },

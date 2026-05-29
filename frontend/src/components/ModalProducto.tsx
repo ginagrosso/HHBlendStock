@@ -37,6 +37,7 @@ export function ModalProducto({ abierto, titulo, valoresIniciales, onCerrar, onG
 
   useEffect(() => {
     if (abierto) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDatos({
         ...fichaVacia,
         ...valoresIniciales,

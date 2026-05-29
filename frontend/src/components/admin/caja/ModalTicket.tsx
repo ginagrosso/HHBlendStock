@@ -177,11 +177,9 @@ async function generarImagenPng(ticket: Ticket, qrDataUrl?: string): Promise<Blo
   fill(WHITE)
   ctx.fillRect(0, 0, W, 1400)
 
-  let y = 0
-
   fill(GOLD)
   ctx.fillRect(0, 0, W, 6)
-  y = 6
+  let y = 6
 
   y += 32
   font(fBrand); fill(BLACK); align('center')
@@ -434,7 +432,6 @@ export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
             </thead>
             <tbody className="divide-y divide-neutral-800/50">
               {ticket.lineas.map((linea, idx) => (
-                // eslint-disable-next-line react/no-array-index-key
                 <tr key={idx}>
                   <td className="py-2 pr-2 text-neutral-200">
                     <p className="truncate max-w-[120px]">{linea.descripcion}</p>

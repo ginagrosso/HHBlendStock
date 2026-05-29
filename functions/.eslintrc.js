@@ -32,6 +32,7 @@ module.exports = {
     "linebreak-style": "off",
     "max-len": ["error", {"code": 120}],
     "require-jsdoc": "off",
+    "valid-jsdoc": "off",
     "new-cap": ["error", {"capIsNewExceptions": ["Router"]}],
     "@typescript-eslint/no-unused-vars": [
       "warn",

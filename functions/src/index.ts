@@ -4,4 +4,4 @@ import {app} from "./app";
 
 setGlobalOptions({maxInstances: 10});
 
-export const api = onRequest({region: "southamerica-east1"}, app);
+export const api = onRequest({region: "southamerica-east1", invoker: "public"}, app);
