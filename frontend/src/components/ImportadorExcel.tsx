@@ -7,7 +7,7 @@ import { type CeldaExcel, type ProductoPlano, procesarMultiplesSheets } from '..
 
 interface Preview {
   productos: ProductoPlano[]
-  reportePorCategoria: Map<string, { exitosos: number; errores: number; mensajes: string[] }>
+  reportePorCategoria: Map<string, { exitosos: number; filasProcessadas: number; errores: number; mensajes: string[] }>
   totalFichas: number
   totalVariantes: number
   totalErroresParseo: number
@@ -16,7 +16,7 @@ interface Preview {
 interface Resultado {
   upsertados: number
   erroresApi: { fila: number; error: string }[]
-  reportePorCategoria: Map<string, { exitosos: number; errores: number; mensajes: string[] }>
+  reportePorCategoria: Map<string, { exitosos: number; filasProcessadas: number; errores: number; mensajes: string[] }>
 }
 
 type Fase = 'idle' | 'parseando' | 'preview' | 'enviando' | 'resultado'
@@ -59,10 +59,11 @@ export function ImportadorExcel() {
       if (totalProductosCreados === 0)
         throw new Error('No se pudieron extraer productos. Verifica la estructura del Excel.')
 
-      const reportePorCategoria = new Map<string, { exitosos: number; errores: number; mensajes: string[] }>()
+      const reportePorCategoria = new Map<string, { exitosos: number; filasProcessadas: number; errores: number; mensajes: string[] }>()
       reporteDetalladoPorSheet.forEach((stats, categoria) => {
         reportePorCategoria.set(categoria, {
           exitosos: stats.exitosos,
+          filasProcessadas: stats.filasProcessadas,
           errores: stats.errores,
           mensajes: stats.detalles,
         })
@@ -246,7 +247,7 @@ export function ImportadorExcel() {
               <div key={cat} className="bg-neutral-900 border border-neutral-800 rounded px-4 py-3 flex justify-between items-center">
                 <span className="text-sm font-medium text-amber-500">{cat}</span>
                 <span className="text-xs text-neutral-400">
-                  {stats.exitosos} productos
+                  {stats.filasProcessadas} filas
                   {stats.errores > 0 && ` · ${stats.errores} errores`}
                 </span>
               </div>
@@ -312,7 +313,7 @@ export function ImportadorExcel() {
                 <div key={cat} className="bg-neutral-900 border border-neutral-800 rounded p-3">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-medium text-amber-500 text-sm">{cat}</span>
-                    <span className="text-xs text-neutral-500">{stats.exitosos} procesados · {stats.errores} errores de parseo</span>
+                    <span className="text-xs text-neutral-500">{stats.filasProcessadas} filas · {stats.errores} errores de parseo</span>
                   </div>
                   {stats.mensajes.slice(0, 3).map((msg, i) => (
                     <p key={i} className="text-xs text-neutral-400 ml-3">→ {msg}</p>

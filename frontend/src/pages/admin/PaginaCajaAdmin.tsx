@@ -66,10 +66,12 @@ export function PaginaCajaAdmin() {
             <CarritoCompra
               items={caja.items}
               totalItems={caja.totalItems}
+              hayPreciosSinDefinir={caja.hayPreciosSinDefinir}
               onCambiarCantidad={caja.cambiarCantidad}
               onQuitarItem={caja.quitarDelCarrito}
               onVaciar={caja.vaciarCarrito}
               onFinalizarCompra={caja.iniciarPago}
+              onActualizarPrecio={caja.actualizarPrecioItem}
             />
           )}
         </div>
@@ -102,10 +104,12 @@ export function PaginaCajaAdmin() {
             <CarritoCompra
               items={caja.items}
               totalItems={caja.totalItems}
+              hayPreciosSinDefinir={caja.hayPreciosSinDefinir}
               onCambiarCantidad={caja.cambiarCantidad}
               onQuitarItem={caja.quitarDelCarrito}
               onVaciar={caja.vaciarCarrito}
               onFinalizarCompra={caja.iniciarPago}
+              onActualizarPrecio={caja.actualizarPrecioItem}
             />
           </div>
         </div>

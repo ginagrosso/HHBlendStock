@@ -26,11 +26,12 @@ interface FilaExcelCruda {
 interface ResultadoSheet {
   exitosos: ProductoPlano[]
   errores: Array<{ fila: number; mensaje: string }>
-  estadisticas: { totalFilas: number; productosCreados: number; erroresEncontrados: number }
+  estadisticas: { totalFilas: number; filasProcessadas: number; variantesCreadas: number; erroresEncontrados: number }
 }
 
 const INDICE_PRIMER_TALLE = 5
 const FILAS_A_INSPECCIONAR = 10
+const CLAVES_RESERVADAS = ['articulo', 'marca', 'descripcion', 'precioefectivo', 'preciotarjeta', 'stockunico']
 
 function normalizarTexto(valor: unknown): string {
   return (valor ?? '')
@@ -88,14 +89,20 @@ function detectarTallesOHijoUnico(
 }
 
 function mapearFilaExcel(filaRaw: CeldaExcel[], headersTalles: string[]): FilaExcelCruda {
+  const articuloRaw = filaRaw[0]?.toString().trim() || ''
+  const descripcionRaw = filaRaw[2]?.toString().trim() || ''
+
   const fila: FilaExcelCruda = {
-    articulo: filaRaw[0]?.toString().trim() || '',
+    // Si no hay artículo, usa la descripción como identificador
+    articulo: articuloRaw || descripcionRaw,
     marca: filaRaw[1]?.toString().trim() || '',
-    descripcion: filaRaw[2]?.toString().trim() || '',
+    descripcion: descripcionRaw,
     precioEfectivo: convertirNumero(filaRaw[3]),
     precioTarjeta: convertirNumero(filaRaw[4]),
   }
 
+  // Solo almacena talles con stock > 0. Los guiones ("-") se ignoran para
+  // evitar crear variantes fantasma para talles que el producto no tiene.
   headersTalles.forEach((talle, idx) => {
     const stock = convertirNumero(filaRaw[INDICE_PRIMER_TALLE + idx])
     if (stock > 0) fila[talle] = stock
@@ -106,13 +113,13 @@ function mapearFilaExcel(filaRaw: CeldaExcel[], headersTalles: string[]): FilaEx
 
 function validarFila(fila: FilaExcelCruda, numeroFila: number): string[] {
   const errores: string[] = []
-  if (!fila.articulo) errores.push(`Fila ${numeroFila}: Artículo es obligatorio`)
+  if (!fila.articulo) errores.push(`Fila ${numeroFila}: Artículo y descripción están vacíos`)
   if (!fila.marca) errores.push(`Fila ${numeroFila}: Marca es obligatoria`)
-  if (!fila.precioEfectivo || fila.precioEfectivo <= 0) {
-    errores.push(`Fila ${numeroFila}: Precio Efectivo debe ser mayor a 0`)
+  if (fila.precioEfectivo === undefined || fila.precioEfectivo < 0) {
+    errores.push(`Fila ${numeroFila}: Precio Efectivo inválido`)
   }
-  if (!fila.precioTarjeta || fila.precioTarjeta <= 0) {
-    errores.push(`Fila ${numeroFila}: Precio Tarjeta debe ser mayor a 0`)
+  if (fila.precioTarjeta === undefined || fila.precioTarjeta < 0) {
+    errores.push(`Fila ${numeroFila}: Precio Tarjeta inválido`)
   }
   return errores
 }
@@ -125,29 +132,27 @@ function aplanarFilaATalles(
   const errores = validarFila(fila, numeroFila)
   if (errores.length > 0) return { productos: [], errores }
 
-  const tallesDisponibles: { talle: string; stock: number }[] = []
+  // Solo recoge talles con stock > 0. Los guiones ("-") ya fueron descartados en mapearFilaExcel.
+  const talles: { talle: string; stock: number }[] = []
 
   for (const [clave, valor] of Object.entries(fila)) {
-    if (
-      !['articulo', 'marca', 'descripcion', 'precioefectivo', 'preciotarjeta', 'stockunico'].includes(
-        clave.toLowerCase()
-      ) &&
-      typeof valor === 'number' &&
-      valor > 0
-    ) {
-      tallesDisponibles.push({ talle: clave, stock: valor })
+    if (!CLAVES_RESERVADAS.includes(clave.toLowerCase()) && typeof valor === 'number' && valor > 0) {
+      talles.push({ talle: clave, stock: valor })
     }
   }
 
-  if (tallesDisponibles.length === 0 && typeof fila.stockUnico === 'number' && fila.stockUnico > 0) {
-    tallesDisponibles.push({ talle: 'UNICO', stock: fila.stockUnico })
+  // Caso producto con columna única de stock
+  if (talles.length === 0 && typeof fila.stockUnico === 'number' && fila.stockUnico > 0) {
+    talles.push({ talle: 'UNICO', stock: fila.stockUnico })
   }
 
-  if (tallesDisponibles.length === 0) {
-    return { productos: [], errores: [`Fila ${numeroFila}: No hay talles con stock`] }
+  // Producto sin stock en ningún talle: se saltea silenciosamente (sin error).
+  // No es un error de datos — simplemente el producto está agotado en ese momento.
+  if (talles.length === 0) {
+    return { productos: [], errores: [] }
   }
 
-  const productos: ProductoPlano[] = tallesDisponibles.map(({ talle, stock }) => ({
+  const productos: ProductoPlano[] = talles.map(({ talle, stock }) => ({
     nombre: fila.descripcion || fila.articulo || 'Producto sin nombre',
     marca: fila.marca || 'Sin marca',
     articulo: fila.articulo || 'Sin artículo',
@@ -167,7 +172,7 @@ function procesarSheet(datos: CeldaExcel[][], categoria: string): ResultadoSheet
     return {
       exitosos: [],
       errores: [{ fila: 1, mensaje: 'La pestaña está vacía o no tiene datos' }],
-      estadisticas: { totalFilas: 0, productosCreados: 0, erroresEncontrados: 1 },
+      estadisticas: { totalFilas: 0, filasProcessadas: 0, variantesCreadas: 0, erroresEncontrados: 1 },
     }
   }
 
@@ -180,18 +185,21 @@ function procesarSheet(datos: CeldaExcel[][], categoria: string): ResultadoSheet
     return {
       exitosos: [],
       errores: [{ fila: 1, mensaje: 'No se encontraron columnas de talles (columnas F en adelante)' }],
-      estadisticas: { totalFilas: Math.max(0, datos.length - 1), productosCreados: 0, erroresEncontrados: 1 },
+      estadisticas: { totalFilas: Math.max(0, datos.length - 1), filasProcessadas: 0, variantesCreadas: 0, erroresEncontrados: 1 },
     }
   }
 
   const exitosos: ProductoPlano[] = []
   const errores: Array<{ fila: number; mensaje: string }> = []
+  let filasProcessadas = 0
 
   for (let i = indiceEncabezado + 1; i < datos.length; i++) {
     const filaRaw = datos[i]
     if (!filaRaw || filaRaw.every(esCeldaVacia)) continue
 
+    filasProcessadas++
     const filaMapeada = mapearFilaExcel(filaRaw, headersTalles)
+
     if (configTalles.tipo === 'stock-unico') {
       const stockUnico = convertirNumero(filaRaw[5])
       if (stockUnico > 0) filaMapeada.stockUnico = stockUnico
@@ -207,7 +215,8 @@ function procesarSheet(datos: CeldaExcel[][], categoria: string): ResultadoSheet
     errores,
     estadisticas: {
       totalFilas: datos.length - 1,
-      productosCreados: exitosos.length,
+      filasProcessadas,
+      variantesCreadas: exitosos.length,
       erroresEncontrados: errores.length,
     },
   }
@@ -215,21 +224,22 @@ function procesarSheet(datos: CeldaExcel[][], categoria: string): ResultadoSheet
 
 export function procesarMultiplesSheets(sheets: Map<string, CeldaExcel[][]>): {
   todosLosProductos: ProductoPlano[]
-  reporteDetalladoPorSheet: Map<string, { exitosos: number; errores: number; detalles: string[] }>
+  reporteDetalladoPorSheet: Map<string, { exitosos: number; filasProcessadas: number; errores: number; detalles: string[] }>
   totalProductosCreados: number
   totalErrores: number
 } {
   const todosLosProductos: ProductoPlano[] = []
   const reporteDetalladoPorSheet = new Map<
     string,
-    { exitosos: number; errores: number; detalles: string[] }
+    { exitosos: number; filasProcessadas: number; errores: number; detalles: string[] }
   >()
   let totalErrores = 0
 
   sheets.forEach((datos, nombreSheet) => {
     const resultado = procesarSheet(datos, nombreSheet.trim())
     reporteDetalladoPorSheet.set(nombreSheet, {
-      exitosos: resultado.estadisticas.productosCreados,
+      exitosos: resultado.estadisticas.variantesCreadas,
+      filasProcessadas: resultado.estadisticas.filasProcessadas,
       errores: resultado.estadisticas.erroresEncontrados,
       detalles: resultado.errores.map((e) => `${e.fila}: ${e.mensaje}`),
     })

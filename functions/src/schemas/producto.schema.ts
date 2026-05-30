@@ -3,8 +3,8 @@ import {z} from "zod";
 const schemaVariante = z.object({
   talle: z.string().min(1, "El talle es requerido"),
   stock: z.number().int().min(0, "El stock no puede ser negativo"),
-  precioEfectivo: z.number().positive("El precio efectivo debe ser positivo"),
-  precioTarjeta: z.number().positive("El precio tarjeta debe ser positivo"),
+  precioEfectivo: z.number().min(0, "El precio efectivo no puede ser negativo"),
+  precioTarjeta: z.number().min(0, "El precio tarjeta no puede ser negativo"),
 });
 
 export const schemaCrearFicha = z.object({
@@ -39,8 +39,8 @@ export const schemaProductoPlano = z.object({
   categoria: z.string().min(1, "La categoría es requerida"),
   talle: z.string().min(1, "El talle es requerido"),
   stock: z.number().int().min(0, "El stock no puede ser negativo"),
-  precioEfectivo: z.number().positive("El precio efectivo debe ser positivo"),
-  precioTarjeta: z.number().positive("El precio tarjeta debe ser positivo"),
+  precioEfectivo: z.number().min(0, "El precio efectivo no puede ser negativo"),
+  precioTarjeta: z.number().min(0, "El precio tarjeta no puede ser negativo"),
   imagenUrl: z.string().url().nullable().optional().default(null),
 });
 

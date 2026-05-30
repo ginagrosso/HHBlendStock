@@ -17,11 +17,13 @@ export interface UseCajaReturn {
   // Carrito
   items: ItemCarrito[]
   totalItems: number
+  hayPreciosSinDefinir: boolean
   calcularTotal: (metodo: MetodoPago) => number
   agregarAlCarrito: (producto: ProductoCaja) => void
   cambiarCantidad: (productoId: string, talle: string, delta: number) => void
   quitarDelCarrito: (productoId: string, talle: string) => void
   vaciarCarrito: () => void
+  actualizarPrecioItem: (productoId: string, talle: string, precioEfectivo: number, precioTarjeta: number) => void
 
   // Flujo de pago
   etapa: EtapaCaja
@@ -136,7 +138,21 @@ export function useCaja(): UseCajaReturn {
 
   const vaciarCarrito = useCallback(() => setItems([]), [])
 
+  const actualizarPrecioItem = useCallback(
+    (productoId: string, talle: string, precioEfectivo: number, precioTarjeta: number) => {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.productoId === productoId && i.talle === talle
+            ? { ...i, precioEfectivo, precioTarjeta }
+            : i,
+        ),
+      )
+    },
+    [],
+  )
+
   const totalItems = items.reduce((acc, i) => acc + i.cantidad, 0)
+  const hayPreciosSinDefinir = items.some((i) => i.precioEfectivo === 0 || i.precioTarjeta === 0)
 
   const calcularTotal = useCallback(
     (metodo: MetodoPago): number =>
@@ -203,11 +219,13 @@ export function useCaja(): UseCajaReturn {
     limpiarBusqueda,
     items,
     totalItems,
+    hayPreciosSinDefinir,
     calcularTotal,
     agregarAlCarrito,
     cambiarCantidad,
     quitarDelCarrito,
     vaciarCarrito,
+    actualizarPrecioItem,
     etapa,
     metodoPago,
     ticketActual,

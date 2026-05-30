@@ -139,12 +139,20 @@ function TarjetaProducto({ producto, onAgregar }: TarjetaProductoProps) {
 
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs text-emerald-400 font-medium">
-            Efectivo: {formatearMoneda(producto.precioEfectivo)}
-          </span>
-          <span className="text-xs text-blue-400">
-            Tarjeta: {formatearMoneda(producto.precioTarjeta)}
-          </span>
+          {producto.precioEfectivo > 0 ? (
+            <span className="text-xs text-emerald-400 font-medium">
+              Efectivo: {formatearMoneda(producto.precioEfectivo)}
+            </span>
+          ) : (
+            <span className="text-xs text-amber-400 font-medium">Efectivo: a definir</span>
+          )}
+          {producto.precioTarjeta > 0 ? (
+            <span className="text-xs text-blue-400">
+              Tarjeta: {formatearMoneda(producto.precioTarjeta)}
+            </span>
+          ) : (
+            <span className="text-xs text-amber-400">Tarjeta: a definir</span>
+          )}
         </div>
         {!sinStock && (
           <PlusCircle className="h-5 w-5 text-neutral-500 group-hover:text-amber-500 transition-colors shrink-0" />
