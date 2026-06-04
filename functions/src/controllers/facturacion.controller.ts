@@ -1,6 +1,21 @@
 import type {Request, Response, NextFunction} from "express";
 import {facturacionService} from "../services/facturacion.service";
 import {schemaActualizarConfig} from "../schemas/facturacion.schema";
+import {getCertificate} from "../arca/cert.helper";
+
+export const emitirNotaCredito = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const {facturaId} = req.params;
+    const resultado = await facturacionService.emitirNotaCredito(facturaId);
+    res.json(resultado);
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const listarFacturas = async (
   req: Request,
@@ -23,7 +38,16 @@ export const getConfig = async (
 ): Promise<void> => {
   try {
     const config = await facturacionService.leerConfig();
-    res.json(config);
+
+    let certVencimiento: string | null = null;
+    try {
+      const cert = getCertificate();
+      certVencimiento = cert.validity.notAfter.toISOString();
+    } catch {
+      // Cert no configurado o ARCA deshabilitada — no es error
+    }
+
+    res.json({...config, certVencimiento});
   } catch (err) {
     next(err);
   }

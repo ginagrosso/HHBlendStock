@@ -21,6 +21,15 @@ const formatearFecha = (iso: string) =>
     minute: '2-digit',
   })
 
+const labelCbte = (cbteTipo: number): string => {
+  switch (cbteTipo) {
+    case 1: return 'FACTURA A'
+    case 6: return 'FACTURA B'
+    case 11: return 'FACTURA C'
+    default: return `COMPROBANTE TIPO ${cbteTipo}`
+  }
+}
+
 const formatearVtoCae = (yyyymmdd: string): string => {
   if (yyyymmdd.length !== 8) return yyyymmdd
   return `${yyyymmdd.slice(6)}/${yyyymmdd.slice(4, 6)}/${yyyymmdd.slice(0, 4)}`
@@ -80,7 +89,7 @@ function generarHtmlTicket(ticket: Ticket, qrDataUrl?: string): string {
   </style>
 </head>
 <body>
-  <div class="header"><h1>H&amp;H BLEND</h1>${ticket.arcaFactura ? '<p style="font-size:11px;font-weight:bold;">FACTURA C</p>' : ''}</div>
+  <div class="header"><h1>H&amp;H BLEND</h1>${ticket.arcaFactura ? `<p style="font-size:11px;font-weight:bold;">${labelCbte(ticket.arcaFactura.cbteTipo)}</p>` : ''}</div>
   <div class="info">
     ${ticket.arcaFactura ? `<p>Comp. N°: <strong>${nroComprobante(ticket.arcaFactura.ptoVta, ticket.arcaFactura.nroComprobante)}</strong></p>` : `<p>Ticket N°: <strong>${ticket.numero}</strong></p>`}
     <p>Fecha: ${formatearFecha(ticket.fecha)}</p>
@@ -259,7 +268,7 @@ async function generarImagenPng(ticket: Ticket, qrDataUrl?: string): Promise<Blo
     const yInicioBloque = y
 
     font(fLabel); fill(GRAY); align('left')
-    text('FACTURA C — COMPROBANTE AUTORIZADO', MRG, y)
+    text(`${labelCbte(ticket.arcaFactura.cbteTipo)} — COMPROBANTE AUTORIZADO`, MRG, y)
     y += 16
 
     font(fSmall); fill(BLACK)
@@ -472,7 +481,7 @@ export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-col gap-0.5 min-w-0">
                 <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
-                  Factura C — Comprobante autorizado ARCA
+                  {labelCbte(ticket.arcaFactura.cbteTipo)} — Comprobante autorizado ARCA
                 </p>
                 <p className="text-xs text-emerald-300 font-mono truncate">
                   CAE: {ticket.arcaFactura.cae}

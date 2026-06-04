@@ -1,6 +1,7 @@
 // ─── Configuración ARCA ────────────────────────────────────────────────────────
 export interface ArcaConfig {
   montoMaximoAnonimo: number;
+  certVencimiento?: string | null;
 }
 
 // ─── Estado del comprobante ────────────────────────────────────────────────────

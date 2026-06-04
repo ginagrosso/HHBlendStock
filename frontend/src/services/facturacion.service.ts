@@ -8,6 +8,13 @@ export const facturacionService = {
     return data.facturas;
   },
 
+  async emitirNotaCredito(facturaId: string): Promise<Factura> {
+    const data = await apiFetch<{factura: Factura}>(`/facturacion/nota-credito/${facturaId}`, {
+      method: "POST",
+    });
+    return data.factura;
+  },
+
   async getConfig(): Promise<ArcaConfig> {
     return apiFetch<ArcaConfig>("/facturacion/config");
   },

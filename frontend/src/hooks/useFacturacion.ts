@@ -52,8 +52,14 @@ export function useFacturacion() {
     }
   }, []);
 
+  const emitirNotaCredito = useCallback(async (facturaId: string): Promise<void> => {
+    const nc = await facturacionService.emitirNotaCredito(facturaId);
+    setFacturas((prev) => [nc, ...prev]);
+  }, []);
+
   return {
     facturas, cargando, error, cargarRecientes,
     config, cargandoConfig, errorConfig, guardandoConfig, cargarConfig, guardarConfig,
+    emitirNotaCredito,
   };
 }

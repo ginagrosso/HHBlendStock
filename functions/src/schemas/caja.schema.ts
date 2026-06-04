@@ -14,7 +14,7 @@ const schemaItemVenta = z.object({
 
 const schemaCliente = z.object({
   nombre: z.string().min(1, "El nombre del cliente es requerido"),
-  telefono: z.string().min(1, "El teléfono del cliente es requerido"),
+  telefono: z.string().min(1).optional(),
 });
 
 const schemaDocReceptor = z.object({

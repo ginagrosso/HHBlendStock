@@ -33,6 +33,16 @@ export interface FacturaRespuesta {
   estado: EstadoFactura;
 }
 
+/** Comprobante asociado (para Notas de Crédito/Débito) */
+export interface CbteAsoc {
+  tipo: number;
+  ptoVta: number;
+  nro: number;
+  cuit: string;
+  /** YYYYMMDD */
+  fecha: string;
+}
+
 /** Parámetros que recibe wsfeService.solicitarCAE */
 export interface SolicitarCAEParams {
   ptoVta: number;
@@ -52,6 +62,7 @@ export interface SolicitarCAEParams {
     cantidad: number;
     precioUnitario: number;
   }>;
+  cbteAsoc?: CbteAsoc;
 }
 
 export interface CAEResult {

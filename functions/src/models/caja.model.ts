@@ -16,7 +16,7 @@ export interface LineaVenta {
 
 export interface ClienteVenta {
   nombre: string;
-  telefono: string;
+  telefono?: string;
 }
 
 export interface Venta {

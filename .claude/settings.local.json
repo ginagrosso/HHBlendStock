@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npx tsc *)",
       "Bash(dir \"c:\\\\Users\\\\gross\\\\Desktop\\\\ProyectosET\\\\HHBlendStock\\\\frontend\\\\src\\\\mocks\")",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(Get-ChildItem -Depth 2)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }

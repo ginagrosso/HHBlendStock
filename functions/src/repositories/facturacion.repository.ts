@@ -1,4 +1,5 @@
 import {db} from "../config/firebase";
+import {AppError} from "../middleware/error.middleware";
 import type {Factura, FacturaRespuesta, ArcaConfig} from "../models/facturacion.model";
 
 const CONFIG_DOC = db.collection("config").doc("arca");
@@ -25,6 +26,12 @@ export const facturacionRepository = {
     const factura: Factura = {...data, id: ref.id};
     await ref.set(factura);
     return serializar(factura);
+  },
+
+  async obtenerPorId(id: string): Promise<Factura> {
+    const snap = await db.collection("facturas").doc(id).get();
+    if (!snap.exists) throw new AppError(404, `Factura ${id} no encontrada`);
+    return snap.data() as Factura;
   },
 
   async listarRecientes(limite = 20): Promise<FacturaRespuesta[]> {

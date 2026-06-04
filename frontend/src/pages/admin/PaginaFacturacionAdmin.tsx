@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {FileText, RefreshCw, Loader2, Settings, Save, ChevronDown, ChevronRight} from "lucide-react";
+import {FileText, RefreshCw, Loader2, Settings, Save, ChevronDown, ChevronRight, AlertTriangle, RotateCcw} from "lucide-react";
 import {useFacturacion} from "../../hooks/useFacturacion";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -27,25 +27,70 @@ function nroComprobante(ptoVta: number, nro: number): string {
   return `${String(ptoVta).padStart(4, "0")}-${String(nro).padStart(8, "0")}`;
 }
 
+const TIPOS_FACTURA: Record<number, number> = {1: 3, 6: 8, 11: 13};
+
+function labelTipoComprobante(cbteTipo: number): string {
+  switch (cbteTipo) {
+    case 1: return "Factura A";
+    case 6: return "Factura B";
+    case 11: return "Factura C";
+    case 3: return "Nota de Crédito A";
+    case 8: return "Nota de Crédito B";
+    case 13: return "Nota de Crédito C";
+    default: return `Tipo ${cbteTipo}`;
+  }
+}
+
+const DIAS_AVISO_CERT = 14;
+
+function avisoVencimientoCert(certVencimiento?: string | null): { diasRestantes: number; fechaTexto: string } | null {
+  if (!certVencimiento) return null;
+  const vence = new Date(certVencimiento);
+  const hoy = new Date();
+  const diasRestantes = Math.ceil((vence.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+  if (diasRestantes > DIAS_AVISO_CERT) return null;
+  const fechaTexto = vence.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return { diasRestantes, fechaTexto };
+}
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export function PaginaFacturacionAdmin() {
   const {facturas, cargando, error, cargarRecientes,
     config, cargandoConfig, errorConfig, guardandoConfig,
-    cargarConfig, guardarConfig} = useFacturacion();
+    cargarConfig, guardarConfig, emitirNotaCredito} = useFacturacion();
 
   const [montoInput, setMontoInput] = useState('');
   const [guardadoOk, setGuardadoOk] = useState(false);
   const [configAbierta, setConfigAbierta] = useState(false);
+  const [emitiendoNC, setEmitiendoNC] = useState<string | null>(null);
+  const [errorNC, setErrorNC] = useState<string | null>(null);
 
   useEffect(() => {
     cargarRecientes(50);
-  }, [cargarRecientes]);
+    cargarConfig();
+  }, [cargarRecientes, cargarConfig]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (config) setMontoInput(String(config.montoMaximoAnonimo));
   }, [config]);
+
+  const handleEmitirNC = async (facturaId: string, nroComp: string) => {
+    const confirmado = window.confirm(
+      `¿Emitir Nota de Crédito para anular el comprobante ${nroComp}?\n\nEsta acción emitirá un comprobante oficial en ARCA. No se puede revertir.`
+    );
+    if (!confirmado) return;
+    setEmitiendoNC(facturaId);
+    setErrorNC(null);
+    try {
+      await emitirNotaCredito(facturaId);
+    } catch (err) {
+      setErrorNC(err instanceof Error ? err.message : "Error al emitir la Nota de Crédito");
+    } finally {
+      setEmitiendoNC(null);
+    }
+  };
 
   const handleGuardarConfig = async () => {
     const valor = parseInt(montoInput, 10);
@@ -82,10 +127,43 @@ export function PaginaFacturacionAdmin() {
         </button>
       </header>
 
+      {/* Aviso vencimiento certificado ARCA */}
+      {(() => {
+        const aviso = avisoVencimientoCert(config?.certVencimiento);
+        if (!aviso) return null;
+        const esUrgente = aviso.diasRestantes <= 3;
+        return (
+          <div className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${
+            esUrgente
+              ? "bg-red-950/40 border-red-700/60 text-red-300"
+              : "bg-amber-950/40 border-amber-700/60 text-amber-300"
+          }`}>
+            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold">
+                {aviso.diasRestantes <= 0
+                  ? "⚠️ El certificado de facturación ARCA venció"
+                  : `El certificado de facturación ARCA vence en ${aviso.diasRestantes} día${aviso.diasRestantes === 1 ? "" : "s"} (${aviso.fechaTexto})`}
+              </p>
+              <p className="text-xs opacity-80">
+                Contactate con <strong>EasyTech</strong> para coordinar la renovación antes de que la facturación electrónica deje de funcionar.
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Error historial */}
       {error && (
         <p className="text-sm text-red-400 bg-red-950/40 border border-red-800/60 rounded-lg px-4 py-3">
           {error}
+        </p>
+      )}
+
+      {/* Error nota de crédito */}
+      {errorNC && (
+        <p className="text-sm text-red-400 bg-red-950/40 border border-red-800/60 rounded-lg px-4 py-3">
+          Error al emitir Nota de Crédito: {errorNC}
         </p>
       )}
 
@@ -170,6 +248,7 @@ export function PaginaFacturacionAdmin() {
                 <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Vto. CAE</th>
                 <th className="text-right px-5 py-3 font-medium">Total</th>
                 <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Fecha</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60">
@@ -179,7 +258,7 @@ export function PaginaFacturacionAdmin() {
                     <p className="text-neutral-100 font-mono text-xs">
                       {nroComprobante(f.ptoVta, f.nroComprobante)}
                     </p>
-                    <p className="text-neutral-600 text-[11px] mt-0.5">Factura C</p>
+                    <p className="text-neutral-600 text-[11px] mt-0.5">{labelTipoComprobante(f.cbteTipo)}</p>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <span className="text-neutral-400 text-xs font-mono">{f.ventaId}</span>
@@ -195,6 +274,22 @@ export function PaginaFacturacionAdmin() {
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <span className="text-neutral-500 text-xs">{formatearFechaISO(f.fecha)}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {TIPOS_FACTURA[f.cbteTipo] && (
+                      <button
+                        type="button"
+                        title="Emitir Nota de Crédito para anular este comprobante"
+                        disabled={emitiendoNC === f.id}
+                        onClick={() => handleEmitirNC(f.id, nroComprobante(f.ptoVta, f.nroComprobante))}
+                        className="flex items-center gap-1 text-xs text-neutral-500 hover:text-amber-400 disabled:opacity-40 transition-colors"
+                      >
+                        {emitiendoNC === f.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <RotateCcw className="h-3.5 w-3.5" />}
+                        <span className="hidden lg:inline">Anular</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

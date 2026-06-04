@@ -22,7 +22,7 @@ export interface TicketRespuesta {
   metodoPago: MetodoPago;
   lineas: LineaTicket[];
   total: number;
-  cliente?: {nombre: string; telefono: string};
+  cliente?: {nombre: string; telefono?: string};
   arcaFactura?: ArcaFacturaTicket;
   arcaError?: string;
 }

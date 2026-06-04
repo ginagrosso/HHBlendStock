@@ -199,7 +199,7 @@ export function ModalProducto({ abierto, titulo, valoresIniciales, onCerrar, onG
                     onChange={(e) => actualizarCampo('categoria', e.target.value)}
                   >
                     <option value="" disabled>Seleccione una categoría...</option>
-                    {categorias.map((cat) => (
+                    {[...new Set([...categorias, datos.categoria].filter(Boolean))].sort().map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>

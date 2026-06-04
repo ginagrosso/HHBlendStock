@@ -194,7 +194,14 @@ export const wsfeService = {
             <ns:ImpIVA>${montos.impIVA.toFixed(2)}</ns:ImpIVA>
             <ns:ImpTrib>0.00</ns:ImpTrib>
             <ns:MonId>PES</ns:MonId>
-            <ns:MonCotiz>1</ns:MonCotiz>${montos.ivaXml}
+            <ns:MonCotiz>1</ns:MonCotiz>${montos.ivaXml}${params.cbteAsoc ?
+  "<ns:CbtesAsoc><ns:CbteAsoc>" +
+  `<ns:Tipo>${params.cbteAsoc.tipo}</ns:Tipo>` +
+  `<ns:PtoVta>${params.cbteAsoc.ptoVta}</ns:PtoVta>` +
+  `<ns:Nro>${params.cbteAsoc.nro}</ns:Nro>` +
+  `<ns:Cuit>${params.cbteAsoc.cuit}</ns:Cuit>` +
+  `<ns:CbteFch>${params.cbteAsoc.fecha}</ns:CbteFch>` +
+  "</ns:CbteAsoc></ns:CbtesAsoc>" : ""}
             <ns:CondicionIVAReceptorId>5</ns:CondicionIVAReceptorId>
           </ns:FECAEDetRequest>
         </ns:FeDetReq>
@@ -251,7 +258,7 @@ export const wsfeService = {
       tipoCodAuth: "E",
       codAuth: String(det.CAE),
     };
-    const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${Buffer.from(JSON.stringify(qrPayload)).toString("base64")}`;
+    const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${Buffer.from(JSON.stringify(qrPayload)).toString("base64url")}`;
 
     return {
       cae: String(det.CAE),
