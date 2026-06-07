@@ -72,6 +72,7 @@ export function TablaInventario({
               <tr className="border-b border-neutral-900 bg-neutral-950/80">
                 <th className="text-xs uppercase tracking-[0.2em] text-neutral-500 py-4 px-6">Producto</th>
                 <th className="text-xs uppercase tracking-[0.2em] text-neutral-500 py-4 px-6">Marca</th>
+                <th className="text-xs uppercase tracking-[0.2em] text-neutral-500 py-4 px-4 whitespace-nowrap">Precios</th>
                 <th className="text-xs uppercase tracking-[0.2em] text-neutral-500 py-4 px-6">Talles</th>
                 <th className="text-xs uppercase tracking-[0.2em] text-neutral-500 py-4 px-6 text-center">Acciones</th>
               </tr>
@@ -108,6 +109,26 @@ export function TablaInventario({
 
                     {/* Marca */}
                     <td className="py-4 px-6 text-neutral-300 whitespace-nowrap">{ficha.marca}</td>
+
+                    {/* Precios */}
+                    <td className="py-4 px-4 whitespace-nowrap">
+                      {(() => {
+                        const precios = ficha.variantes.map((v) => v.precioEfectivo)
+                        const tarjetas = ficha.variantes.map((v) => v.precioTarjeta)
+                        const minEf = Math.min(...precios)
+                        const maxEf = Math.max(...precios)
+                        const minTj = Math.min(...tarjetas)
+                        const maxTj = Math.max(...tarjetas)
+                        const ef = minEf === maxEf ? formatearMoneda(minEf) : `${formatearMoneda(minEf)}–${formatearMoneda(maxEf)}`
+                        const tj = minTj === maxTj ? formatearMoneda(minTj) : `${formatearMoneda(minTj)}–${formatearMoneda(maxTj)}`
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-neutral-100 font-medium">{ef}</span>
+                            <span className="text-[11px] text-neutral-500">{tj} <span className="text-neutral-700">tj</span></span>
+                          </div>
+                        )
+                      })()}
+                    </td>
 
                     {/* Talles */}
                     <td className="py-4 px-6">
@@ -211,7 +232,7 @@ export function TablaInventario({
               })}
               {totalResultados === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-10 text-center text-neutral-500">
+                  <td colSpan={5} className="py-10 text-center text-neutral-500">
                     No hay productos que coincidan con los filtros.
                   </td>
                 </tr>
