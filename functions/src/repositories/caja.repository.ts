@@ -1,7 +1,7 @@
 import {FieldValue, Timestamp} from "firebase-admin/firestore";
 import {db} from "../config/firebase";
 import {AppError} from "../middleware/error.middleware";
-import type {LineaVenta, MetodoPago, ClienteVenta, Venta, VentaRespuesta} from "../models/caja.model";
+import type {LineaVenta, PagoSplit, ClienteVenta, Venta, VentaRespuesta} from "../models/caja.model";
 import type {Ficha} from "../models/producto.model";
 import type {AgregadoMasVendidos} from "../models/reportes.model";
 import type {FinalizarVentaDTO} from "../dtos/caja.dto";
@@ -25,7 +25,7 @@ function serializarVenta(venta: Venta): VentaRespuesta {
     id: venta.id,
     numero: venta.numero,
     fecha: venta.fecha.toDate().toISOString(),
-    metodoPago: venta.metodoPago,
+    pagos: venta.pagos,
     items: venta.items,
     total: venta.total,
     cliente: venta.cliente,
@@ -70,7 +70,7 @@ export const cajaRepository = {
 
   async crearVenta(
     items: FinalizarVentaDTO["items"],
-    metodoPago: MetodoPago,
+    pagos: PagoSplit[],
     cliente: ClienteVenta | undefined,
     vendedorId: string
   ): Promise<VentaRespuesta> {
@@ -154,7 +154,7 @@ export const cajaRepository = {
         id: ventaRef.id,
         numero,
         fecha,
-        metodoPago,
+        pagos,
         items: lineas,
         total,
         vendedorId,

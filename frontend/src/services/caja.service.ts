@@ -23,18 +23,19 @@ const cajaServiceReal: ICajaService = {
   },
 
   async finalizarVenta(datos) {
+    const hasTarjeta = datos.pagos.some((p) => p.metodo === 'tarjeta')
     const body: IFinalizarVentaRequest = {
       items: datos.items.map((item) => ({
         productoId: item.productoId,
         articulo: item.articulo,
         talle: item.talle,
         cantidad: item.cantidad,
-        precioUnitario:
-          datos.metodoPago === 'tarjeta' ? item.precioTarjeta : item.precioEfectivo,
+        precioUnitario: hasTarjeta ? item.precioTarjeta : item.precioEfectivo,
       })),
-      metodoPago: datos.metodoPago,
+      pagos: datos.pagos,
       cliente: datos.cliente,
       docReceptor: datos.docReceptor,
+      facturarEnArca: datos.facturarEnArca,
     }
     return apiFetch<IFinalizarVentaResponse>('/caja/ventas', {
       method: 'POST',

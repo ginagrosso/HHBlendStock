@@ -39,7 +39,9 @@ export const reportesService = {
 
     // KPIs
     const desglose: DesgloseMedioPago = {efectivo: 0, tarjeta: 0, transferencia: 0};
-    for (const v of ventas) desglose[v.metodoPago] += v.total;
+    for (const v of ventas) {
+      for (const pago of v.pagos) desglose[pago.metodo] += pago.monto;
+    }
     const resumen: ResumenReportes = {
       ventasHoy: ventasHoy.reduce((s, v) => s + v.total, 0),
       cantidadVentasHoy: ventasHoy.length,

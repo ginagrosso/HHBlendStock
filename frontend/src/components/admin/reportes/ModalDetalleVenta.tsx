@@ -1,6 +1,14 @@
 import { X, User, CreditCard } from 'lucide-react'
 import type { VentaHistorial } from '../../../types/reportes.types'
+import type { PagoSplit } from '../../../types/caja.types'
 import { LABELS_METODO_PAGO } from '../../../types/caja.types'
+
+const fmtMini = (n: number) => n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
+
+function labelPagos(pagos: PagoSplit[]): string {
+  if (pagos.length === 1) return LABELS_METODO_PAGO[pagos[0].metodo]
+  return pagos.map((p) => `${LABELS_METODO_PAGO[p.metodo]}: ${fmtMini(p.monto)}`).join(' + ')
+}
 
 interface Props {
   venta: VentaHistorial | null
@@ -58,7 +66,7 @@ export function ModalDetalleVenta({ venta, onCerrar }: Props) {
             <div>
               <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Método</p>
               <p className="text-sm text-neutral-200 font-medium">
-                {LABELS_METODO_PAGO[venta.metodoPago]}
+                {labelPagos(venta.pagos)}
               </p>
             </div>
           </div>

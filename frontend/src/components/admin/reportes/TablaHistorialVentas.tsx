@@ -1,6 +1,14 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { VentaHistorial } from '../../../types/reportes.types'
+import type { PagoSplit } from '../../../types/caja.types'
 import { LABELS_METODO_PAGO } from '../../../types/caja.types'
+
+const fmt = (n: number) => n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
+
+function labelPagos(pagos: PagoSplit[]): string {
+  if (pagos.length === 1) return LABELS_METODO_PAGO[pagos[0].metodo]
+  return pagos.map((p) => `${LABELS_METODO_PAGO[p.metodo]}: ${fmt(p.monto)}`).join(' + ')
+}
 
 interface Props {
   ventas: VentaHistorial[]
@@ -80,7 +88,7 @@ export function TablaHistorialVentas({
                     <td className="px-6 py-4 text-sm text-neutral-500">#{v.numero}</td>
                     <td className="px-6 py-4 text-sm text-neutral-300 whitespace-nowrap">{fmtFecha(v.fecha)}</td>
                     <td className="px-6 py-4 text-sm text-neutral-400 hidden md:table-cell">
-                      {LABELS_METODO_PAGO[v.metodoPago]}
+                      {labelPagos(v.pagos)}
                     </td>
                     <td className="px-6 py-4 text-sm text-neutral-400">
                       {totalItems(v)} ítem{totalItems(v) !== 1 ? 's' : ''}

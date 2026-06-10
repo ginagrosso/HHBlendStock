@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { ProductoCaja, ItemCarrito, MetodoPago, DatosCliente, DocReceptor, Ticket } from '../types/caja.types'
+import type { ProductoCaja, ItemCarrito, MetodoPago, PagoSplit, DatosCliente, DocReceptor, Ticket } from '../types/caja.types'
 import type { ArcaConfig } from '../types/facturacion.types'
 import { cajaService } from '../services/caja.service'
 import { facturacionService } from '../services/facturacion.service'
@@ -27,15 +27,13 @@ export interface UseCajaReturn {
 
   // Flujo de pago
   etapa: EtapaCaja
-  metodoPago: MetodoPago | null
   ticketActual: Ticket | null
   procesando: boolean
   erroPago: string | null
   arcaConfig: ArcaConfig | null
   iniciarPago: () => void
-  seleccionarMetodoPago: (metodo: MetodoPago) => void
   volverAlCarrito: () => void
-  confirmarVenta: (cliente?: DatosCliente, docReceptor?: DocReceptor) => Promise<void>
+  confirmarVenta: (pagos: PagoSplit[], cliente?: DatosCliente, docReceptor?: DocReceptor, facturarEnArca?: boolean) => Promise<void>
   cerrarTicket: () => void
 }
 
@@ -47,7 +45,6 @@ export function useCaja(): UseCajaReturn {
   const [items, setItems] = useState<ItemCarrito[]>([])
 
   const [etapa, setEtapa] = useState<EtapaCaja>('carrito')
-  const [metodoPago, setMetodoPago] = useState<MetodoPago | null>(null)
   const [ticketActual, setTicketActual] = useState<Ticket | null>(null)
   const [procesando, setProcesando] = useState(false)
   const [erroPago, setErroPago] = useState<string | null>(null)
@@ -170,27 +167,23 @@ export function useCaja(): UseCajaReturn {
     setErroPago(null)
   }, [])
 
-  const seleccionarMetodoPago = useCallback((metodo: MetodoPago) => {
-    setMetodoPago(metodo)
-  }, [])
-
   const volverAlCarrito = useCallback(() => {
     setEtapa('carrito')
-    setMetodoPago(null)
     setErroPago(null)
   }, [])
 
   const confirmarVenta = useCallback(
-    async (cliente?: DatosCliente, docReceptor?: DocReceptor) => {
-      if (!metodoPago) return
+    async (pagos: PagoSplit[], cliente?: DatosCliente, docReceptor?: DocReceptor, facturarEnArca?: boolean) => {
+      if (pagos.length === 0) return
       setProcesando(true)
       setErroPago(null)
       try {
         const resultado = await cajaService.finalizarVenta({
           items,
-          metodoPago,
+          pagos,
           cliente,
           docReceptor,
+          facturarEnArca,
         })
         setTicketActual(resultado.ticket)
         setEtapa('ticket')
@@ -200,14 +193,13 @@ export function useCaja(): UseCajaReturn {
         setProcesando(false)
       }
     },
-    [items, metodoPago],
+    [items],
   )
 
   const cerrarTicket = useCallback(() => {
     setItems([])
     limpiarBusqueda()
     setTicketActual(null)
-    setMetodoPago(null)
     setEtapa('carrito')
   }, [limpiarBusqueda])
 
@@ -227,13 +219,11 @@ export function useCaja(): UseCajaReturn {
     vaciarCarrito,
     actualizarPrecioItem,
     etapa,
-    metodoPago,
     ticketActual,
     procesando,
     erroPago,
     arcaConfig,
     iniciarPago,
-    seleccionarMetodoPago,
     volverAlCarrito,
     confirmarVenta,
     cerrarTicket,

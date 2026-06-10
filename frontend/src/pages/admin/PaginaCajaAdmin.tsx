@@ -118,12 +118,10 @@ export function PaginaCajaAdmin() {
       {/* ── MODALES ────────────────────────────────────────────────────── */}
       {caja.etapa === 'pago' && (
         <ModalMetodoPago
-          metodoPago={caja.metodoPago}
           procesando={caja.procesando}
           erroPago={caja.erroPago}
           arcaConfig={caja.arcaConfig}
           calcularTotal={caja.calcularTotal}
-          onSeleccionarMetodo={caja.seleccionarMetodoPago}
           onVolver={caja.volverAlCarrito}
           onConfirmar={caja.confirmarVenta}
         />

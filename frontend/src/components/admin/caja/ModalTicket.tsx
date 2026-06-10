@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import QRCode from 'qrcode'
 import { Printer, CheckCircle2, X, Loader2, Share2, AlertTriangle } from 'lucide-react'
-import type { Ticket } from '../../../types/caja.types'
+import type { Ticket, PagoSplit } from '../../../types/caja.types'
 import { LABELS_METODO_PAGO } from '../../../types/caja.types'
 
 // ─── Formato ──────────────────────────────────────────────────────────────────
@@ -11,6 +11,11 @@ const fmt = (valor: number) =>
     currency: 'ARS',
     maximumFractionDigits: 0,
   }).format(valor)
+
+function labelPagos(pagos: PagoSplit[]): string {
+  if (pagos.length === 1) return LABELS_METODO_PAGO[pagos[0].metodo]
+  return pagos.map((p) => `${LABELS_METODO_PAGO[p.metodo]}: ${fmt(p.monto)}`).join(' + ')
+}
 
 const formatearFecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-AR', {
@@ -101,7 +106,7 @@ function generarHtmlTicket(ticket: Ticket, qrDataUrl?: string): string {
   </table>
   <div class="divider"></div>
   <div class="total-row"><span>TOTAL</span><span>${fmt(ticket.total)}</span></div>
-  <div class="metodo">Pago: ${LABELS_METODO_PAGO[ticket.metodoPago]}</div>
+  <div class="metodo">Pago: ${labelPagos(ticket.pagos)}</div>
   ${ticket.arcaFactura ? `
   <div class="cae">
     <p><span class="label">CAE:</span> ${ticket.arcaFactura.cae}</p>
@@ -256,7 +261,7 @@ async function generarImagenPng(ticket: Ticket, qrDataUrl?: string): Promise<Blo
   y += 22
 
   font(fBody); fill(GRAY); align('left')
-  text(`Pago: ${LABELS_METODO_PAGO[ticket.metodoPago]}`, MRG, y)
+  text(`Pago: ${labelPagos(ticket.pagos)}`, MRG, y)
   y += 28
 
   line(y); y += 20
@@ -463,9 +468,9 @@ export function ModalTicket({ ticket, onCerrar }: ModalTicketProps) {
         <div className="px-6 py-4 border-t border-neutral-800">
           <div className="flex justify-between items-center">
             <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-neutral-500">Método de pago</span>
+              <span className="text-xs text-neutral-500">Pago</span>
               <span className="text-sm font-semibold text-neutral-200">
-                {LABELS_METODO_PAGO[ticket.metodoPago]}
+                {labelPagos(ticket.pagos)}
               </span>
             </div>
             <div className="flex flex-col items-end gap-0.5">

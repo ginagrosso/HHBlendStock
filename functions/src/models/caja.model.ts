@@ -2,6 +2,11 @@ import type {Timestamp} from "firebase-admin/firestore";
 
 export type MetodoPago = "efectivo" | "tarjeta" | "transferencia";
 
+export interface PagoSplit {
+  metodo: MetodoPago;
+  monto: number;
+}
+
 export interface LineaVenta {
   productoId: string;
   descripcion: string;
@@ -23,7 +28,7 @@ export interface Venta {
   id: string;
   numero: string;
   fecha: Timestamp;
-  metodoPago: MetodoPago;
+  pagos: PagoSplit[];
   items: LineaVenta[];
   total: number;
   cliente?: ClienteVenta;
@@ -34,7 +39,7 @@ export interface VentaRespuesta {
   id: string;
   numero: string;
   fecha: string;
-  metodoPago: MetodoPago;
+  pagos: PagoSplit[];
   items: LineaVenta[];
   total: number;
   cliente?: ClienteVenta;

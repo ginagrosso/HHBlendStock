@@ -1,6 +1,6 @@
-import type {MetodoPago} from "./caja.model";
+import type {MetodoPago, PagoSplit} from "./caja.model";
 
-export type {MetodoPago};
+export type {MetodoPago, PagoSplit};
 
 // ─── Agregado histórico de más vendidos ───────────────────────────────────────
 // Almacenado en analytics/masVendidos. Se actualiza en cada venta (transacción
@@ -35,7 +35,7 @@ export interface VentaReportes {
   id: string;
   numero: number;
   fecha: string;
-  metodoPago: MetodoPago;
+  pagos: PagoSplit[];
   items: ItemVentaReportes[];
   total: number;
   cliente?: {nombre: string; telefono?: string};

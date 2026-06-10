@@ -1,6 +1,6 @@
 import {Timestamp} from "firebase-admin/firestore";
 import {db} from "../config/firebase";
-import type {LineaVenta, MetodoPago} from "../models/caja.model";
+import type {LineaVenta, MetodoPago, PagoSplit} from "../models/caja.model";
 import type {
   ItemVentaReportes,
   VentaReportes,
@@ -42,14 +42,20 @@ function serializarVenta(doc: FirebaseFirestore.QueryDocumentSnapshot): VentaRep
   const items = (d.items as LineaVenta[]).map(serializarItem);
   const numero = parseInt((d.numero as string).replace("TKT-", ""), 10);
   const cliente = d.cliente as {nombre: string; telefono: string} | undefined;
+  const total = d.total as number;
+
+  // Docs nuevos tienen `pagos: PagoSplit[]`; docs anteriores tienen `metodoPago: MetodoPago`.
+  const pagos: PagoSplit[] = Array.isArray(d.pagos) ?
+    (d.pagos as PagoSplit[]) :
+    [{metodo: d.metodoPago as MetodoPago, monto: total}];
 
   const venta: VentaReportes = {
     id: doc.id,
     numero,
     fecha: (d.fecha as Timestamp).toDate().toISOString(),
-    metodoPago: d.metodoPago as MetodoPago,
+    pagos,
     items,
-    total: d.total as number,
+    total,
   };
   if (cliente) venta.cliente = cliente;
   return venta;

@@ -23,9 +23,23 @@ const schemaDocReceptor = z.object({
   nro: z.number().int().positive("Número de documento inválido"),
 });
 
+const schemaPagoSplit = z.object({
+  metodo: z.enum(["efectivo", "tarjeta", "transferencia"]),
+  monto: z.number().positive("El monto de cada pago debe ser mayor a 0"),
+});
+
 export const schemaFinalizarVenta = z.object({
   items: z.array(schemaItemVenta).min(1, "El carrito no puede estar vacío"),
-  metodoPago: z.enum(["efectivo", "tarjeta", "transferencia"]),
+  pagos: z
+    .array(schemaPagoSplit)
+    .min(1, "Debe seleccionar al menos un método de pago")
+    .max(2, "Máximo 2 métodos de pago")
+    .refine(
+      (pagos) => new Set(pagos.map((p) => p.metodo)).size === pagos.length,
+      "No se pueden repetir los métodos de pago"
+    ),
   cliente: schemaCliente.optional(),
   docReceptor: schemaDocReceptor.optional(),
+  /** false bloquea la emisión ARCA aunque esté habilitada globalmente. Omitir = comportamiento por defecto. */
+  facturarEnArca: z.boolean().optional(),
 });

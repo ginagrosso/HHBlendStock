@@ -1,5 +1,5 @@
-import type { MetodoPago } from './caja.types'
-export type { MetodoPago }
+import type { MetodoPago, PagoSplit } from './caja.types'
+export type { MetodoPago, PagoSplit }
 
 // ─── Entidades del dominio ─────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ export interface VentaHistorial {
   fecha: string         // ISO 8601
   items: ItemVenta[]
   total: number
-  metodoPago: MetodoPago
+  pagos: PagoSplit[]
   cliente?: {
     nombre: string
     telefono?: string

@@ -7,8 +7,12 @@ export const LABELS_METODO_PAGO: Record<MetodoPago, string> = {
   transferencia: 'Transferencia',
 }
 
+export interface PagoSplit {
+  metodo: MetodoPago
+  monto: number
+}
+
 // ─── Producto en caja (contrato con el backend) ────────────────────────────────
-// Refleja exactamente los campos que el API debe devolver al buscar productos en caja.
 export interface ProductoCaja {
   id: string
   nombre: string
@@ -38,10 +42,10 @@ export interface ItemCarrito {
 // ─── Datos opcionales del cliente para el ticket / WhatsApp ───────────────────
 export interface DatosCliente {
   nombre: string
-  telefono: string
+  telefono?: string
 }
 
-// ─── Documento del receptor para ARCA (requerido cuando supera límite anónimo) ─
+// ─── Documento del receptor para ARCA ─────────────────────────────────────────
 export interface DocReceptor {
   tipo: 96 | 80  // 96 = DNI, 80 = CUIT
   nro: number
@@ -50,9 +54,11 @@ export interface DocReceptor {
 // ─── Datos de una venta a procesar ────────────────────────────────────────────
 export interface DatosVenta {
   items: ItemCarrito[]
-  metodoPago: MetodoPago
+  pagos: PagoSplit[]
   cliente?: DatosCliente
   docReceptor?: DocReceptor
+  /** false bloquea la emisión en ARCA aunque esté habilitada. Omitir = comportamiento por defecto. */
+  facturarEnArca?: boolean
 }
 
 // ─── Ticket de venta ───────────────────────────────────────────────────────────
@@ -77,7 +83,7 @@ export interface ArcaFacturaTicket {
 export interface Ticket {
   numero: string
   fecha: string          // ISO 8601
-  metodoPago: MetodoPago
+  pagos: PagoSplit[]
   lineas: LineaTicket[]
   total: number
   cliente?: DatosCliente
@@ -86,10 +92,6 @@ export interface Ticket {
 }
 
 // ─── Contratos del API (request / response) ────────────────────────────────────
-// Documentan lo que el backend debe aceptar y retornar.
-// Al conectar el backend real, reemplazar la implementación mock en caja.service.ts
-// sin modificar estas interfaces.
-
 export interface IBuscarProductosResponse {
   productos: ProductoCaja[]
 }
@@ -100,11 +102,12 @@ export interface IFinalizarVentaRequest {
     articulo: string
     talle: string
     cantidad: number
-    precioUnitario: number  // precio según método de pago
+    precioUnitario: number  // precio según si hay tarjeta en pagos
   }>
-  metodoPago: MetodoPago
+  pagos: PagoSplit[]
   cliente?: DatosCliente
   docReceptor?: DocReceptor
+  facturarEnArca?: boolean
 }
 
 export interface IFinalizarVentaResponse {
