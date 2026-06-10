@@ -2,6 +2,8 @@
 export interface ArcaConfig {
   montoMaximoAnonimo: number;
   certVencimiento?: string | null;
+  /** Refleja si ARCA está habilitada en el entorno del servidor. */
+  habilitada?: boolean;
 }
 
 // ─── Estado del comprobante ────────────────────────────────────────────────────

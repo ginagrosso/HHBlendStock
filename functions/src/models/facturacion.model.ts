@@ -74,9 +74,11 @@ export interface CAEResult {
   qrUrl: string;
 }
 
-/** Documento Firestore: config/arca */
+/** Documento Firestore: config/arca + campo runtime habilitada (env var) */
 export interface ArcaConfig {
   /** Límite por encima del cual ARCA exige identificar al comprador.
    *  Fuente: Anexo II RG 1415/03 (FAQ AFIP 24152817). Actualizar si ARCA publica nuevo valor. */
   montoMaximoAnonimo: number;
+  /** Refleja ARCA_HABILITADA del entorno. No se persiste en Firestore. */
+  habilitada?: boolean;
 }

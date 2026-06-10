@@ -20,6 +20,8 @@ export const schemaEmitirFactura = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "fecha debe tener formato YYYY-MM-DD"),
   items: z.array(schemaItem).min(1, "items no puede estar vacío"),
+  /** 1 = Factura A, 6 = Factura B, 11 = Factura C. Omitir para usar el tipo configurado en servidor. */
+  cbteTipo: z.union([z.literal(1), z.literal(6), z.literal(11)]).optional(),
 });
 
 export const schemaActualizarConfig = z.object({

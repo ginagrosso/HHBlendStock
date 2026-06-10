@@ -10,7 +10,8 @@ export const facturacionService = {
   async emitirFactura(
     dto: EmitirFacturaDTO
   ): Promise<{factura: FacturaRespuesta; qrUrl: string}> {
-    const {puntoVenta: ptoVta, cbteTipo, cuit} = arcaConfig;
+    const {puntoVenta: ptoVta, cuit} = arcaConfig;
+    const cbteTipo = dto.cbteTipo ?? arcaConfig.cbteTipo;
 
     const ultimoNro = await wsfeService.getUltimoNroComprobante(ptoVta, cbteTipo);
     const nroComprobante = ultimoNro + 1;
@@ -110,7 +111,8 @@ export const facturacionService = {
   },
 
   async leerConfig(): Promise<ArcaConfig> {
-    return facturacionRepository.leerConfig();
+    const config = await facturacionRepository.leerConfig();
+    return {...config, habilitada: arcaConfig.habilitada};
   },
 
   async actualizarConfig(config: ArcaConfig): Promise<ArcaConfig> {
