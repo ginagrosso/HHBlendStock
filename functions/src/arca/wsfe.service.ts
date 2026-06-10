@@ -253,22 +253,26 @@ export const wsfeService = {
       throw new AppError(502, "ARCA aprobó el comprobante pero no devolvió CAE");
     }
 
-    // URL de verificación ARCA — formato RG 4291/2018.
+    // URL de verificación ARCA — especificación oficial:
+    // https://www.afip.gob.ar/fe/qr/documentos/QRespecificaciones.pdf
+    // Nombres de campo y tipos exactos según el PDF (tipoCmp/nroCmp/tipoCodAut/codAut,
+    // codAut numérico). Usar otros nombres (p.ej. tipoCbte/codAuth) hace que ARCA no
+    // pueda identificar el comprobante y redirija a la página genérica del QR.
     // p = base64 estándar del JSON (NO base64url: AFIP no acepta los chars - y _).
     const qrPayload = {
       ver: 1,
       fecha: params.fecha,
       cuit: parseInt(arcaConfig.cuit, 10),
       ptoVta: params.ptoVta,
-      tipoCbte: params.cbteTipo,
-      nroCbte: params.nroComprobante,
+      tipoCmp: params.cbteTipo,
+      nroCmp: params.nroComprobante,
       importe: params.importeTotal,
       moneda: "PES",
       ctz: 1,
       tipoDocRec: params.docTipo,
       nroDocRec: params.docNro,
-      tipoCodAuth: "E",
-      codAuth: String(det.CAE),
+      tipoCodAut: "E",
+      codAut: Number(det.CAE),
     };
     const qrB64 = encodeURIComponent(Buffer.from(JSON.stringify(qrPayload)).toString("base64"));
     const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${qrB64}`;
