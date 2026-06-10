@@ -32,6 +32,19 @@ function extractFirstError(
   return item as {Code: number; Msg: string};
 }
 
+// ─── Condición IVA del receptor según tipo de comprobante ─────────────────────
+
+/**
+ * Comprobantes "A" (Factura, Nota de Débito, Nota de Crédito, Recibo y Venta al
+ * contado A = tipos 1 a 5). Exigen receptor Responsable Inscripto (Id=1).
+ * Los comprobantes B/C usan Consumidor Final (Id=5).
+ */
+const TIPOS_CBTE_A = new Set([1, 2, 3, 4, 5]);
+
+function condicionIVAReceptor(cbteTipo: number): number {
+  return TIPOS_CBTE_A.has(cbteTipo) ? 1 : 5;
+}
+
 // ─── Montos según tipo de comprobante ─────────────────────────────────────────
 
 interface Montos {
@@ -202,7 +215,7 @@ export const wsfeService = {
   `<ns:Cuit>${params.cbteAsoc.cuit}</ns:Cuit>` +
   `<ns:CbteFch>${params.cbteAsoc.fecha}</ns:CbteFch>` +
   "</ns:CbteAsoc></ns:CbtesAsoc>" : ""}
-            <ns:CondicionIVAReceptorId>5</ns:CondicionIVAReceptorId>
+            <ns:CondicionIVAReceptorId>${condicionIVAReceptor(cbteTipo)}</ns:CondicionIVAReceptorId>
           </ns:FECAEDetRequest>
         </ns:FeDetReq>
       </ns:FeCAEReq>`,
@@ -241,8 +254,7 @@ export const wsfeService = {
     }
 
     // URL de verificación ARCA — formato RG 4291/2018.
-    // p = base64(JSON con datos del comprobante). El receptor escanea el QR
-    // con cualquier lector y accede a la validación en el sitio de AFIP.
+    // p = base64 estándar del JSON (NO base64url: AFIP no acepta los chars - y _).
     const qrPayload = {
       ver: 1,
       fecha: params.fecha,
@@ -258,7 +270,8 @@ export const wsfeService = {
       tipoCodAuth: "E",
       codAuth: String(det.CAE),
     };
-    const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${Buffer.from(JSON.stringify(qrPayload)).toString("base64url")}`;
+    const qrB64 = encodeURIComponent(Buffer.from(JSON.stringify(qrPayload)).toString("base64"));
+    const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${qrB64}`;
 
     return {
       cae: String(det.CAE),
